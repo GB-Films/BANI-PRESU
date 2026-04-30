@@ -37,7 +37,7 @@ import {
 import { clearSession, loadBudgets, loadCurrentId, loadPricingCatalog, loadSession, saveBudgets, saveCurrentId, savePricingCatalog, saveSession } from './lib/storage'
 
 const navItems = [
-  ['dashboard', 'Dashboard'],
+  ['dashboard', 'Presupuestos'],
   ['brand', 'Marca'],
   ['admin', 'Admin'],
 ]
@@ -463,7 +463,7 @@ function ProducerWizard({ budget, totals, wizardStep, setWizardStep, setWizardAc
           <p className="eyebrow">Armado guiado</p>
           <h2>{wizardSteps[wizardStep]}</h2>
         </div>
-        <button className="ghost" onClick={() => setWizardActive(false)}>Volver al dashboard</button>
+        <button className="ghost" onClick={() => setWizardActive(false)}>Volver a presupuestos</button>
       </div>
 
       {wizardStep === 0 && <ProjectSection budget={budget} updateBudget={updateBudget} updateNested={updateNested} showBudgetType={false} producerMode />}

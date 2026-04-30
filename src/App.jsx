@@ -79,6 +79,15 @@ const defaultConsiderations = [
   { id: 'deliverables-9-16', text: 'Se entregaran piezas verticales en formato 9:16.', included: false },
   { id: 'full-hd', text: 'El formato de entrega sera .mov y .mp4, ambos en Full HD.', included: false },
 ]
+const defaultIncludedWorks = [
+  { id: 'modelado-3d', text: 'Modelado 3D realista', included: false },
+  { id: 'trackeo-3d', text: 'Trackeo 3D', included: false },
+  { id: 'invisible-vfx', text: 'Invisible VFX', included: false },
+  { id: 'composicion', text: 'Composicion', included: false },
+  { id: 'renders-3d', text: 'Renders 3D', included: false },
+  { id: 'sonido', text: 'Diseno de sonido', included: false },
+  { id: 'color', text: 'Color', included: false },
+]
 const appUsers = {
   admin: { password: 'admin', role: 'admin', label: 'Administrador' },
   crew: { password: 'crew', role: 'producer', label: 'Crew / Productor' },
@@ -440,10 +449,63 @@ function ProjectBreakdownStep({ budget, pricingCatalog, updateNested, updateRow,
           <Select label="Complejidad" value={specs.complexity || 'Media'} options={['Baja', 'Media', 'Alta']} onChange={(v) => updateNested('productionSpecs', { complexity: v })} />
         </div>
       </section>
+      {isBallpark && <BallparkProposalStep budget={budget} updateNested={updateNested} />}
       <TeamSection budget={budget} isAdmin={false} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />
       {isBallpark && <BallparkSection budget={budget} isAdmin={false} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
       {isDetailed && <DetailedSection budget={budget} isAdmin={false} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
     </div>
+  )
+}
+
+function BallparkProposalStep({ budget, updateNested }) {
+  const specs = budget.productionSpecs || {}
+  const includedWorks = specs.includedWorks?.length ? specs.includedWorks : defaultIncludedWorks
+  const updateSpec = (patch) => updateNested('productionSpecs', patch)
+  const updateWork = (id, patch) => {
+    updateSpec({
+      includedWorks: includedWorks.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    })
+  }
+  const addWork = () => {
+    updateSpec({
+      includedWorks: [...includedWorks, { id: crypto.randomUUID(), text: 'Nuevo trabajo incluido', included: true }],
+    })
+  }
+  const removeWork = (id) => {
+    updateSpec({
+      includedWorks: includedWorks.filter((item) => item.id !== id),
+    })
+  }
+
+  return (
+    <section className="panel">
+      <SectionTitle icon={<FileText />} eyebrow="Propuesta Ballpark" title="Contenido para cliente" />
+      <div className="form-grid">
+        <Input label="Titulo comercial" value={specs.commercialTitle || ''} onChange={(v) => updateSpec({ commercialTitle: v })} />
+        <Input label="Cantidad / duracion de piezas" value={specs.pieceSummary || ''} onChange={(v) => updateSpec({ pieceSummary: v })} />
+        <Input label="Facturacion" value={specs.billingInfo || ''} onChange={(v) => updateSpec({ billingInfo: v })} />
+        <Input label="Condicion de pago" value={specs.paymentTerms || ''} onChange={(v) => updateSpec({ paymentTerms: v })} />
+      </div>
+      <Textarea label="Desarrollo de la propuesta" value={specs.development || ''} onChange={(v) => updateSpec({ development: v })} />
+      <div className="considerations-panel proposal-works">
+        <div className="admin-block-header">
+          <div>
+            <p className="eyebrow">Trabajos de post-produccion</p>
+            <h3>Incluidos en esta propuesta</h3>
+          </div>
+          <button className="add-row" onClick={addWork}><Plus size={16} /> Agregar</button>
+        </div>
+        <div className="consideration-list">
+          {includedWorks.map((item) => (
+            <div className="consideration-row" key={item.id}>
+              <Check checked={item.included} onChange={(v) => updateWork(item.id, { included: v })} />
+              <CellInput value={item.text} onChange={(v) => updateWork(item.id, { text: v })} />
+              <IconButton icon={<Trash2 size={15} />} onClick={() => removeWork(item.id)} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -856,6 +918,8 @@ function ExportSection({ budget, totals, updateNested, exportRef, exportImage, e
   const visibleBallpark = budget.ballparkItems.filter((row) => row.included)
   const visibleDetailed = budget.detailedTasks.filter((row) => row.included)
   const visibleTeam = budget.teamMembers.filter((row) => row.included)
+  const specs = budget.productionSpecs || {}
+  const includedWorks = (specs.includedWorks?.length ? specs.includedWorks : defaultIncludedWorks).filter((item) => item.included)
   const visibleConsiderations = [
     ...(budget.notes?.considerations?.length ? budget.notes.considerations : defaultConsiderations).filter((item) => item.included).map((item) => item.text),
     budget.notes?.clientNotes,
@@ -884,8 +948,19 @@ function ExportSection({ budget, totals, updateNested, exportRef, exportImage, e
           </div>
         )}
         {opts.projectData && <ExportBlock title="Datos del proyecto" rows={[
-          ['Cliente', budget.client], ['Agencia / productora', budget.agency || budget.productionCompany], ['Responsable', budget.owner], ['Moneda', budget.currency], ['Tipo', budget.budgetMode],
+          ['Cliente', budget.client], ['Agencia / productora', budget.agency || budget.productionCompany], ['Responsable', budget.owner], ['Moneda', budget.currency], ['Tipo', budget.budgetMode], ['Piezas / duracion', specs.pieceSummary],
         ]} />}
+        {opts.ballpark && totals.isBallpark && (
+          <div className="export-block">
+            <h3>{specs.commercialTitle || 'Propuesta'}</h3>
+            {specs.development && <p>{specs.development}</p>}
+            {!!includedWorks.length && (
+              <table>
+                {includedWorks.map((item) => <tbody key={item.id}><tr><td>{item.text}</td></tr></tbody>)}
+              </table>
+            )}
+          </div>
+        )}
         {opts.executiveSummary && <ExportBlock title="Resumen ejecutivo" rows={[
           ['Subtotal equipo', money(totals.subtotalTeam, budget.currency)],
           ['Subtotal ballpark', money(totals.subtotalBallpark, budget.currency)],
@@ -897,6 +972,7 @@ function ExportSection({ budget, totals, updateNested, exportRef, exportImage, e
         {opts.detailed && totals.isDetailed && <ExportTable title="Presupuesto detallado" rows={visibleDetailed.map((r) => [r.area, r.taskName, `${r.quantity} ${r.unit}`, money(lineSubtotal(r), budget.currency)])} />}
         {opts.totals && <TotalsPanel budget={budget} totals={totals} exportMode />}
         {opts.notes && <div className="export-notes"><h3>Consideraciones</h3>{visibleConsiderations.map((text, index) => <p key={`${text}-${index}`}>{text}</p>)}{opts.view === 'Interna' && <p>{budget.notes.internalNotes}</p>}</div>}
+        {opts.notes && (specs.paymentTerms || specs.billingInfo) && <div className="export-notes"><h3>Facturacion y pago</h3>{specs.billingInfo && <p>{specs.billingInfo}</p>}{specs.paymentTerms && <p>{specs.paymentTerms}</p>}</div>}
         <footer>© BANI VFX - Postproduccion, VFX & 3D</footer>
       </div>
     </section>

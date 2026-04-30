@@ -897,6 +897,10 @@ h3 {
   background: rgba(255, 255, 255, 0.025);
 }
 
+.proposal-works {
+  margin-top: 18px;
+}
+
 .consideration-list {
   display: grid;
   gap: 8px;

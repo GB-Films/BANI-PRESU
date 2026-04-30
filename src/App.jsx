@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import {
   BarChart3,
+  ArrowDown,
+  ArrowUp,
   Copy,
   Download,
   FileImage,
@@ -1226,6 +1228,28 @@ function AdminSection({ pricingCatalog, setPricingCatalog }) {
     }))
   }
 
+  const moveCatalogRow = (collection, fromIndex, toIndex) => {
+    setPricingCatalog((catalog) => {
+      const rows = [...catalog[collection]]
+      if (toIndex < 0 || toIndex >= rows.length) return catalog
+      const [moved] = rows.splice(fromIndex, 1)
+      rows.splice(toIndex, 0, moved)
+      return { ...catalog, [collection]: rows }
+    })
+  }
+
+  const moveRoleWithinSection = (index, direction) => {
+    const section = getRoleSection(pricingCatalog.roles[index]?.area)
+    const sectionIndexes = pricingCatalog.roles
+      .map((row, rowIndex) => ({ rowIndex, section: getRoleSection(row.area) }))
+      .filter((item) => item.section === section)
+      .map((item) => item.rowIndex)
+    const currentPosition = sectionIndexes.indexOf(index)
+    const targetIndex = sectionIndexes[currentPosition + direction]
+    if (targetIndex === undefined) return
+    moveCatalogRow('roles', index, targetIndex)
+  }
+
   const resetCatalog = () => setPricingCatalog(defaultPricingCatalog)
 
   return (
@@ -1239,17 +1263,15 @@ function AdminSection({ pricingCatalog, setPricingCatalog }) {
       <AdminCatalogBlock
         title="Valores de equipo"
         actionLabel="Agregar rol"
-        headers={['Rol', 'Area', 'Valor/dia', '']}
+        headers={['Orden', 'Rol', 'Area', 'Valor/dia', '']}
         onAdd={() => addCatalogRow('roles', { role: 'Nuevo rol', area: 'VFX', dayRate: 0 })}
       >
-        {pricingCatalog.roles.map((row, index) => (
-          <tr key={`role-${index}`}>
-            <td><CellInput value={row.role} onChange={(v) => updateCatalogRow('roles', index, { role: v })} /></td>
-            <td><CellSelect value={row.area} options={areaOptions} onChange={(v) => updateCatalogRow('roles', index, { area: v })} /></td>
-            <td><CellInput type="number" value={row.dayRate} onChange={(v) => updateCatalogRow('roles', index, { dayRate: Number(v) })} /></td>
-            <td><IconButton onClick={() => removeCatalogRow('roles', index)} icon={<Trash2 size={15} />} /></td>
-          </tr>
-        ))}
+        <RoleCatalogRows
+          rows={pricingCatalog.roles}
+          updateRow={(index, patch) => updateCatalogRow('roles', index, patch)}
+          removeRow={(index) => removeCatalogRow('roles', index)}
+          moveRow={moveRoleWithinSection}
+        />
       </AdminCatalogBlock>
 
       <AdminCatalogBlock
@@ -1323,6 +1345,45 @@ function AdminCatalogBlock({ title, actionLabel, headers, onAdd, children }) {
       </div>
     </div>
   )
+}
+
+const roleSections = ['POST', 'VFX', '3D']
+
+function getRoleSection(area = '') {
+  const normalized = area.toLowerCase()
+  if (normalized.includes('3d')) return '3D'
+  if (normalized.includes('vfx') || normalized.includes('motion') || normalized.includes('supervision')) return 'VFX'
+  return 'POST'
+}
+
+function RoleCatalogRows({ rows, updateRow, removeRow, moveRow }) {
+  return roleSections.map((section) => {
+    const sectionRows = rows
+      .map((row, index) => ({ row, index }))
+      .filter(({ row }) => getRoleSection(row.area) === section)
+
+    return (
+      <Fragment key={section}>
+        <tr className="catalog-section-row">
+          <td colSpan="5">{section}</td>
+        </tr>
+        {sectionRows.map(({ row, index }, sectionIndex) => (
+          <tr key={`role-${index}`}>
+            <td>
+              <div className="order-actions">
+                <IconButton title="Subir" disabled={sectionIndex === 0} onClick={() => moveRow(index, -1)} icon={<ArrowUp size={14} />} />
+                <IconButton title="Bajar" disabled={sectionIndex === sectionRows.length - 1} onClick={() => moveRow(index, 1)} icon={<ArrowDown size={14} />} />
+              </div>
+            </td>
+            <td><CellInput value={row.role} onChange={(v) => updateRow(index, { role: v })} /></td>
+            <td><CellSelect value={row.area} options={areaOptions} onChange={(v) => updateRow(index, { area: v })} /></td>
+            <td><CellInput type="number" value={row.dayRate} onChange={(v) => updateRow(index, { dayRate: Number(v) })} /></td>
+            <td><IconButton title="Eliminar" onClick={() => removeRow(index)} icon={<Trash2 size={15} />} /></td>
+          </tr>
+        ))}
+      </Fragment>
+    )
+  })
 }
 
 function FeePanel({ budget, updateNested }) {
@@ -1437,8 +1498,8 @@ function Check({ checked, onChange }) {
   return <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
 }
 
-function IconButton({ icon, onClick }) {
-  return <button className="icon-button" onClick={onClick}>{icon}</button>
+function IconButton({ icon, onClick, title, disabled = false }) {
+  return <button className="icon-button" title={title} disabled={disabled} onClick={onClick}>{icon}</button>
 }
 
 function Line({ label, value, strong }) {

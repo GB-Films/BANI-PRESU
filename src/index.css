@@ -433,6 +433,11 @@ nav button:hover {
   background: rgba(230, 30, 110, 0.09);
 }
 
+.icon-button:disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+}
+
 .side-total {
   margin-top: auto;
   padding: 18px;
@@ -1001,6 +1006,29 @@ h3 {
 
 .admin-block-header .add-row {
   margin-top: 0;
+}
+
+.catalog-section-row td {
+  padding: 16px 10px 10px;
+  color: var(--bani-pink);
+  background: rgba(230, 30, 110, 0.08);
+  border-top: 1px solid rgba(230, 30, 110, 0.24);
+  border-bottom: 1px solid rgba(230, 30, 110, 0.16);
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+
+.order-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.order-actions .icon-button {
+  width: 34px;
+  min-height: 34px;
+  padding: 7px;
 }
 
 .admin-actions {

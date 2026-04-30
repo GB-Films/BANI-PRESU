@@ -36,12 +36,6 @@ import { clearSession, loadBudgets, loadCurrentId, loadPricingCatalog, loadSessi
 
 const navItems = [
   ['dashboard', 'Dashboard'],
-  ['project', 'Proyecto'],
-  ['team', 'Equipo'],
-  ['ballpark', 'Ballpark'],
-  ['detailed', 'Detallado'],
-  ['summary', 'Resumen'],
-  ['export', 'Exportar'],
   ['brand', 'Marca'],
   ['admin', 'Admin'],
 ]
@@ -183,6 +177,7 @@ function App() {
 
   useEffect(() => {
     if (!isAdmin && section !== 'dashboard' && !wizardActive) setSection('dashboard')
+    if (isAdmin && !['dashboard', 'brand', 'admin'].includes(section)) setSection('dashboard')
   }, [isAdmin, section, wizardActive])
 
   useEffect(() => {
@@ -240,10 +235,6 @@ function App() {
     const fresh = { ...createBudget(), currency: budget?.currency || 'USD' }
     setBudgets((items) => [fresh, ...items])
     setCurrentId(fresh.id)
-    if (isAdmin) {
-      setSection('project')
-      return
-    }
     setWizardActive(true)
     setWizardStep(0)
     setSection('dashboard')
@@ -313,12 +304,12 @@ function App() {
         </div>
         <nav>
           {visibleNavItems.map(([id, label]) => (
-            <button key={id} className={section === id ? 'active' : ''} onClick={() => setSection(id)}>
+            <button key={id} className={section === id ? 'active' : ''} onClick={() => { if (id !== 'dashboard') setWizardActive(false); setSection(id) }}>
               {label}
             </button>
           ))}
         </nav>
-        {!isAdmin && wizardActive && <WizardStepNav wizardStep={wizardStep} setWizardStep={setWizardStep} />}
+        {wizardActive && <WizardStepNav wizardStep={wizardStep} setWizardStep={setWizardStep} />}
         <div className="side-total">
           <span>Total final</span>
           <strong>{money(totals.totalFinal, budget.currency)}</strong>
@@ -332,14 +323,11 @@ function App() {
             <h1>{budget.projectName}</h1>
           </div>
           <div className="toolbar">
-            {isAdmin && <button className="ghost" onClick={() => duplicateBudget()}><Copy size={16} /> Duplicar</button>}
-            {isAdmin && <button className="ghost" onClick={startNewBudget}><Plus size={16} /> Nuevo</button>}
-            {isAdmin && <button className="primary" onClick={() => setSection('export')}><Download size={16} /> Exportar</button>}
             <SessionPanel session={session} onLogout={handleLogout} />
           </div>
         </header>
 
-        {!isAdmin && wizardActive && (
+        {wizardActive && (
           <ProducerWizard
             budget={budget}
             totals={totals}
@@ -356,16 +344,9 @@ function App() {
             exportPdf={exportPdf}
           />
         )}
-        {!isAdmin && !wizardActive && section === 'dashboard' && <Dashboard budgets={budgets} currentId={currentId} setCurrentId={setCurrentId} deleteBudget={deleteBudget} duplicateBudget={duplicateBudget} setSection={setSection} onNewBudget={startNewBudget} onOpenWizard={openWizardForBudget} isAdmin={isAdmin} />}
-        {isAdmin && section === 'dashboard' && <Dashboard budgets={budgets} currentId={currentId} setCurrentId={setCurrentId} deleteBudget={deleteBudget} duplicateBudget={duplicateBudget} setSection={setSection} onNewBudget={startNewBudget} isAdmin={isAdmin} />}
-        {isAdmin && section === 'project' && <ProjectSection budget={budget} updateBudget={updateBudget} updateNested={updateNested} />}
-        {isAdmin && section === 'team' && <TeamSection budget={budget} isAdmin={isAdmin} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
-        {isAdmin && section === 'ballpark' && <BallparkSection budget={budget} isAdmin={isAdmin} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
-        {isAdmin && section === 'detailed' && <DetailedSection budget={budget} isAdmin={isAdmin} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
-        {isAdmin && section === 'summary' && <SummarySection budget={budget} totals={totals} updateNested={updateNested} isAdmin />}
-        {isAdmin && section === 'export' && <ExportSection budget={budget} totals={totals} updateNested={updateNested} exportRef={exportRef} exportImage={exportImage} exportPdf={exportPdf} />}
-        {isAdmin && section === 'brand' && <BrandSection budget={budget} updateNested={updateNested} />}
-        {isAdmin && section === 'admin' && <AdminSection pricingCatalog={pricingCatalog} setPricingCatalog={setPricingCatalog} />}
+        {!wizardActive && section === 'dashboard' && <Dashboard budgets={budgets} currentId={currentId} setCurrentId={setCurrentId} deleteBudget={deleteBudget} duplicateBudget={duplicateBudget} setSection={setSection} onNewBudget={startNewBudget} onOpenWizard={openWizardForBudget} isAdmin={false} />}
+        {!wizardActive && isAdmin && section === 'brand' && <BrandSection budget={budget} updateNested={updateNested} />}
+        {!wizardActive && isAdmin && section === 'admin' && <AdminSection pricingCatalog={pricingCatalog} setPricingCatalog={setPricingCatalog} />}
       </main>
     </div>
   )
@@ -1262,7 +1243,7 @@ function AdminSection({ pricingCatalog, setPricingCatalog }) {
         onAdd={() => addCatalogRow('roles', { role: 'Nuevo rol', area: 'VFX', dayRate: 0 })}
       >
         {pricingCatalog.roles.map((row, index) => (
-          <tr key={`${row.role}-${index}`}>
+          <tr key={`role-${index}`}>
             <td><CellInput value={row.role} onChange={(v) => updateCatalogRow('roles', index, { role: v })} /></td>
             <td><CellSelect value={row.area} options={areaOptions} onChange={(v) => updateCatalogRow('roles', index, { area: v })} /></td>
             <td><CellInput type="number" value={row.dayRate} onChange={(v) => updateCatalogRow('roles', index, { dayRate: Number(v) })} /></td>
@@ -1278,7 +1259,7 @@ function AdminSection({ pricingCatalog, setPricingCatalog }) {
         onAdd={() => addCatalogRow('ballpark', { name: 'Nueva partida', description: '', quantity: 1, unitValue: 0 })}
       >
         {pricingCatalog.ballpark.map((row, index) => (
-          <tr key={`${row.name}-${index}`}>
+          <tr key={`ballpark-${index}`}>
             <td><CellInput value={row.name} onChange={(v) => updateCatalogRow('ballpark', index, { name: v })} /></td>
             <td><CellInput value={row.description} onChange={(v) => updateCatalogRow('ballpark', index, { description: v })} /></td>
             <td><CellInput type="number" value={row.quantity} onChange={(v) => updateCatalogRow('ballpark', index, { quantity: Number(v) })} /></td>
@@ -1295,7 +1276,7 @@ function AdminSection({ pricingCatalog, setPricingCatalog }) {
         onAdd={() => addCatalogRow('ballparkDayRates', { key: crypto.randomUUID(), name: 'Nuevo departamento', description: '', unitValue: 0 })}
       >
         {(pricingCatalog.ballparkDayRates?.length ? pricingCatalog.ballparkDayRates : defaultPricingCatalog.ballparkDayRates).map((row, index) => (
-          <tr key={`${row.key}-${index}`}>
+          <tr key={`ballpark-day-${index}`}>
             <td><CellInput value={row.key} onChange={(v) => updateCatalogRow('ballparkDayRates', index, { key: v })} /></td>
             <td><CellInput value={row.name} onChange={(v) => updateCatalogRow('ballparkDayRates', index, { name: v })} /></td>
             <td><CellInput value={row.description} onChange={(v) => updateCatalogRow('ballparkDayRates', index, { description: v })} /></td>
@@ -1312,7 +1293,7 @@ function AdminSection({ pricingCatalog, setPricingCatalog }) {
         onAdd={() => addCatalogRow('tasks', { area: 'VFX', taskName: 'Nueva tarea', description: '', unit: 'Dia', unitValue: 0 })}
       >
         {pricingCatalog.tasks.map((row, index) => (
-          <tr key={`${row.area}-${row.taskName}-${index}`}>
+          <tr key={`task-${index}`}>
             <td><CellInput value={row.area} onChange={(v) => updateCatalogRow('tasks', index, { area: v })} /></td>
             <td><CellInput value={row.taskName} onChange={(v) => updateCatalogRow('tasks', index, { taskName: v })} /></td>
             <td><CellInput value={row.description} onChange={(v) => updateCatalogRow('tasks', index, { description: v })} /></td>

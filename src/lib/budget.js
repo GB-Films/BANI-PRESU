@@ -21,6 +21,8 @@ export const createBallparkItem = (preset = {}) => ({
   unitValue: Number(preset.unitValue ?? 0),
   notes: '',
   included: true,
+  sourceType: preset.sourceType ?? '',
+  sourceKey: preset.sourceKey ?? '',
 })
 
 export const createDetailedTask = (preset = {}) => ({
@@ -90,6 +92,14 @@ export const createBudget = () => ({
       { id: 'changes', text: 'Cambios fuera del alcance cotizado se presupuestan por separado.', included: false },
       { id: 'materials', text: 'El cronograma queda sujeto a la entrega de materiales y feedback en tiempo.', included: false },
       { id: 'taxes', text: 'Impuestos, medios y costos de terceros no incluidos salvo indicacion expresa.', included: false },
+      { id: 'script-by-sport', text: 'Contemplamos que se nos entrega el guion correspondiente a cada deporte para poder realizar nuestro trabajo.', included: false },
+      { id: 'music-library', text: 'No esta contemplado componer musica; se usaran canciones de biblioteca provista.', included: false },
+      { id: 'voiceover', text: 'No esta contemplado grabar locuciones.', included: false },
+      { id: 'delivery-date', text: 'La fecha de entrega de las piezas es la que figura en el cronograma previsto.', included: false },
+      { id: 'payment-detail', text: 'Contemplamos en el precio el pago tal como se detalla en la seccion del presupuesto.', included: false },
+      { id: 'deliverables-16-9', text: 'Se entregaran videos en formato 16:9, uno por cada deporte.', included: false },
+      { id: 'deliverables-9-16', text: 'Se entregaran piezas verticales en formato 9:16.', included: false },
+      { id: 'full-hd', text: 'El formato de entrega sera .mov y .mp4, ambos en Full HD.', included: false },
     ],
     clientNotes: '',
     internalNotes: '',

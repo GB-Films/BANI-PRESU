@@ -605,6 +605,28 @@ h3 {
   text-transform: uppercase;
 }
 
+.ballpark-days-panel {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid rgba(230, 30, 110, 0.22);
+  background: rgba(230, 30, 110, 0.055);
+}
+
+.ballpark-days-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.ballpark-days-grid small {
+  color: #737373;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+}
+
 .add-row {
   margin-top: 14px;
 }
@@ -1099,6 +1121,7 @@ input[type="color"] {
   }
 
   .wizard-steps,
+  .ballpark-days-grid,
   .type-choice-grid {
     grid-template-columns: 1fr;
   }

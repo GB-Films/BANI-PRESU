@@ -50,14 +50,34 @@ const assetBase = import.meta.env.BASE_URL
 const defaultPricingCatalog = {
   roles: rolePresets,
   ballpark: ballparkPresets,
+  ballparkDayRates: [
+    { key: 'montaje', name: 'Montaje', description: 'Jornadas de montaje / edicion', unitValue: 380 },
+    { key: 'color', name: 'Color', description: 'Jornadas de color', unitValue: 520 },
+    { key: 'sonido', name: 'Sonido', description: 'Jornadas de sonido', unitValue: 360 },
+    { key: 'vfx', name: 'VFX', description: 'Jornadas de VFX', unitValue: 440 },
+    { key: '3d', name: '3D', description: 'Jornadas de 3D', unitValue: 430 },
+  ],
   tasks: taskPresets,
 }
+const mergePricingCatalog = (catalog) => ({
+  ...defaultPricingCatalog,
+  ...(catalog || {}),
+  ballparkDayRates: catalog?.ballparkDayRates?.length ? catalog.ballparkDayRates : defaultPricingCatalog.ballparkDayRates,
+})
 const defaultConsiderations = [
   { id: 'validity', text: 'Validez de la cotizacion: 15 dias.', included: true },
   { id: 'scope-review', text: 'Alcance sujeto a revision de materiales finales.', included: true },
   { id: 'changes', text: 'Cambios fuera del alcance cotizado se presupuestan por separado.', included: false },
   { id: 'materials', text: 'El cronograma queda sujeto a la entrega de materiales y feedback en tiempo.', included: false },
   { id: 'taxes', text: 'Impuestos, medios y costos de terceros no incluidos salvo indicacion expresa.', included: false },
+  { id: 'script-by-sport', text: 'Contemplamos que se nos entrega el guion correspondiente a cada deporte para poder realizar nuestro trabajo.', included: false },
+  { id: 'music-library', text: 'No esta contemplado componer musica; se usaran canciones de biblioteca provista.', included: false },
+  { id: 'voiceover', text: 'No esta contemplado grabar locuciones.', included: false },
+  { id: 'delivery-date', text: 'La fecha de entrega de las piezas es la que figura en el cronograma previsto.', included: false },
+  { id: 'payment-detail', text: 'Contemplamos en el precio el pago tal como se detalla en la seccion del presupuesto.', included: false },
+  { id: 'deliverables-16-9', text: 'Se entregaran videos en formato 16:9, uno por cada deporte.', included: false },
+  { id: 'deliverables-9-16', text: 'Se entregaran piezas verticales en formato 9:16.', included: false },
+  { id: 'full-hd', text: 'El formato de entrega sera .mov y .mp4, ambos en Full HD.', included: false },
 ]
 const appUsers = {
   admin: { password: 'admin', role: 'admin', label: 'Administrador' },
@@ -75,7 +95,7 @@ function App() {
   const [wizardStep, setWizardStep] = useState(0)
   const [session, setSession] = useState(() => loadSession())
   const [loginError, setLoginError] = useState('')
-  const [pricingCatalog, setPricingCatalog] = useState(() => loadPricingCatalog(defaultPricingCatalog))
+  const [pricingCatalog, setPricingCatalog] = useState(() => mergePricingCatalog(loadPricingCatalog(defaultPricingCatalog)))
   const exportRef = useRef(null)
 
   const budget = budgets.find((item) => item.id === currentId) || budgets[0]
@@ -651,12 +671,53 @@ function TeamSection({ budget, isAdmin, pricingCatalog, updateRow, removeRow, up
 
 function BallparkSection({ budget, isAdmin, pricingCatalog, updateRow, removeRow, updateBudget }) {
   const addPreset = (preset) => updateBudget({ ballparkItems: [...budget.ballparkItems, createBallparkItem(preset)] })
+  const dayRates = pricingCatalog.ballparkDayRates?.length ? pricingCatalog.ballparkDayRates : defaultPricingCatalog.ballparkDayRates
+  const updateDayRateItem = (rate, quantity) => {
+    const nextQuantity = Number(quantity || 0)
+    const existing = budget.ballparkItems.find((item) => item.sourceType === 'ballparkDayRate' && item.sourceKey === rate.key)
+    const patch = {
+      name: `Jornadas ${rate.name}`,
+      description: rate.description,
+      quantity: nextQuantity,
+      unitValue: Number(rate.unitValue || 0),
+      included: nextQuantity > 0,
+      sourceType: 'ballparkDayRate',
+      sourceKey: rate.key,
+    }
+
+    if (existing) {
+      updateRow('ballparkItems', existing.id, patch)
+      return
+    }
+
+    updateBudget({
+      ballparkItems: [...budget.ballparkItems, createBallparkItem(patch)],
+    })
+  }
   const headers = isAdmin
     ? ['Incl.', 'Partida', 'Descripcion', 'Cant.', 'Unitario', 'Subtotal', 'Notas', '']
     : ['Incl.', 'Partida', 'Descripcion', 'Cant.', 'Subtotal', 'Notas', '']
 
   return (
     <CrudSection title="Presupuesto Ballpark" eyebrow={isAdmin ? 'Estimacion rapida / valores' : 'Estimacion rapida'} icon={<Sparkles />} actions={<PresetButtons presets={pricingCatalog.ballpark} getLabel={(p) => p.name} onPick={addPreset} />}>
+      <div className="ballpark-days-panel">
+        <div>
+          <p className="eyebrow">Jornadas por departamento</p>
+          <h3>Produccion rapida</h3>
+        </div>
+        <div className="ballpark-days-grid">
+          {dayRates.map((rate) => {
+            const item = budget.ballparkItems.find((row) => row.sourceType === 'ballparkDayRate' && row.sourceKey === rate.key)
+            return (
+              <label className="field" key={rate.key}>
+                <span>{rate.name}</span>
+                <input type="number" min="0" value={item?.quantity || ''} onChange={(event) => updateDayRateItem(rate, event.target.value)} placeholder="Jornadas" />
+                {isAdmin && <small>{money(rate.unitValue, budget.currency)} / jornada</small>}
+              </label>
+            )
+          })}
+        </div>
+      </div>
       <EditableTable headers={headers}>
         {budget.ballparkItems.map((row) => (
           <tr key={row.id}>
@@ -934,6 +995,23 @@ function AdminSection({ pricingCatalog, setPricingCatalog }) {
             <td><CellInput type="number" value={row.quantity} onChange={(v) => updateCatalogRow('ballpark', index, { quantity: Number(v) })} /></td>
             <td><CellInput type="number" value={row.unitValue} onChange={(v) => updateCatalogRow('ballpark', index, { unitValue: Number(v) })} /></td>
             <td><IconButton onClick={() => removeCatalogRow('ballpark', index)} icon={<Trash2 size={15} />} /></td>
+          </tr>
+        ))}
+      </AdminCatalogBlock>
+
+      <AdminCatalogBlock
+        title="Jornadas Ballpark"
+        actionLabel="Agregar departamento"
+        headers={['Clave', 'Departamento', 'Descripcion', 'Valor/jornada', '']}
+        onAdd={() => addCatalogRow('ballparkDayRates', { key: crypto.randomUUID(), name: 'Nuevo departamento', description: '', unitValue: 0 })}
+      >
+        {(pricingCatalog.ballparkDayRates?.length ? pricingCatalog.ballparkDayRates : defaultPricingCatalog.ballparkDayRates).map((row, index) => (
+          <tr key={`${row.key}-${index}`}>
+            <td><CellInput value={row.key} onChange={(v) => updateCatalogRow('ballparkDayRates', index, { key: v })} /></td>
+            <td><CellInput value={row.name} onChange={(v) => updateCatalogRow('ballparkDayRates', index, { name: v })} /></td>
+            <td><CellInput value={row.description} onChange={(v) => updateCatalogRow('ballparkDayRates', index, { description: v })} /></td>
+            <td><CellInput type="number" value={row.unitValue} onChange={(v) => updateCatalogRow('ballparkDayRates', index, { unitValue: Number(v) })} /></td>
+            <td><IconButton onClick={() => removeCatalogRow('ballparkDayRates', index)} icon={<Trash2 size={15} />} /></td>
           </tr>
         ))}
       </AdminCatalogBlock>

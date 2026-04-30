@@ -312,10 +312,12 @@ function App() {
           ))}
         </nav>
         {wizardActive && <WizardStepNav wizardStep={wizardStep} setWizardStep={setWizardStep} />}
-        <div className="side-total">
-          <span>Total final</span>
-          <strong>{money(totals.totalFinal, budget.currency)}</strong>
-        </div>
+        {(wizardActive || section === 'dashboard') && (
+          <div className="side-total">
+            <span>Total final</span>
+            <strong>{money(totals.totalFinal, budget.currency)}</strong>
+          </div>
+        )}
       </aside>
 
       <main>
@@ -714,12 +716,10 @@ function Dashboard({ budgets, currentId, setCurrentId, deleteBudget, duplicateBu
 
   return (
     <section className="panel">
-      <SectionTitle icon={<Sparkles />} eyebrow="LocalStorage" title="Presupuestos guardados" />
-      {!isAdmin && (
-        <div className="producer-dashboard-hero">
-          <button className="primary" onClick={onNewBudget}><Plus size={16} /> Nuevo proyecto</button>
-        </div>
-      )}
+      <div className="dashboard-heading">
+        <SectionTitle icon={<Sparkles />} eyebrow="LocalStorage" title="Presupuestos guardados" />
+        <button className="primary" onClick={onNewBudget}><Plus size={16} /> Nuevo proyecto</button>
+      </div>
       <div className="dashboard-controls">
         <Input label="Buscar proyecto / cliente / presupuesto" value={filters.search} onChange={(v) => updateFilter('search', v)} />
         <Select label="Cliente" value={filters.client} options={clients} onChange={(v) => updateFilter('client', v)} />

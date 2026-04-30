@@ -7,6 +7,7 @@ import {
   ArrowUp,
   Copy,
   Download,
+  Edit3,
   FileImage,
   FileText,
   Grid3X3,
@@ -149,6 +150,8 @@ const appUsers = {
   crew: { password: 'crew', role: 'producer', label: 'Crew / Productor' },
 }
 
+const confirmDelete = (label = 'este item') => window.confirm(`Seguro que queres eliminar ${label}?`)
+
 function App() {
   const [budgets, setBudgets] = useState(() => {
     const saved = loadBudgets()
@@ -230,6 +233,7 @@ function App() {
   }
 
   const removeRow = (collection, id) => {
+    if (!confirmDelete('esta fila')) return
     updateBudget({ [collection]: budget[collection].filter((row) => row.id !== id) })
   }
 
@@ -263,6 +267,7 @@ function App() {
   }
 
   const deleteBudget = (id) => {
+    if (!confirmDelete('este presupuesto')) return
     if (budgets.length === 1) {
       const fresh = createBudget()
       setBudgets([fresh])
@@ -300,8 +305,8 @@ function App() {
         <div className="brand-lockup">
           <img src={budget.brandSettings.logo || `${assetBase}logo.png`} alt="BANI VFX" />
           <div>
-            <strong>BANI VFX</strong>
-            <span>Presu Lab</span>
+            <strong>LAB</strong>
+            <span>Layout, Assets & Budget</span>
           </div>
         </div>
         <nav>
@@ -419,7 +424,7 @@ function LoginScreen({ onLogin, loginError }) {
       <div className="login-shell">
         <div className="login-logo">
           <img src={`${assetBase}logo.png`} alt="BANI VFX" />
-          <span>PRESU LAB</span>
+          <span>LAB - Layout, Assets & Budget</span>
         </div>
         <form className="login-card" onSubmit={(event) => { event.preventDefault(); onLogin(username, password) }}>
           <div className="login-line" />
@@ -600,6 +605,7 @@ function BallparkProposalStep({ budget, updateNested }) {
     })
   }
   const removeWork = (id) => {
+    if (!confirmDelete('este trabajo incluido')) return
     updateSpec({
       includedWorks: includedWorks.filter((item) => item.id !== id),
     })
@@ -777,9 +783,9 @@ function Dashboard({ budgets, currentId, setCurrentId, deleteBudget, duplicateBu
               </div>
               <strong>{money(totals.totalFinal, item.currency)}</strong>
               <div className="row-actions">
-                <button onClick={() => { isAdmin ? (setCurrentId(item.id), setSection('project')) : onOpenWizard?.(item.id) }}>Editar</button>
-                {isAdmin && <button onClick={() => duplicateBudget(item)}><Copy size={15} /></button>}
-                <button onClick={() => deleteBudget(item.id)}><Trash2 size={15} /></button>
+                <button title="Editar" onClick={() => { isAdmin ? (setCurrentId(item.id), setSection('project')) : onOpenWizard?.(item.id) }}><Edit3 size={15} /></button>
+                {isAdmin && <button title="Duplicar" onClick={() => duplicateBudget(item)}><Copy size={15} /></button>}
+                <button title="Eliminar" onClick={() => deleteBudget(item.id)}><Trash2 size={15} /></button>
               </div>
             </article>
           )
@@ -1080,6 +1086,7 @@ function ConsiderationsPanel({ budget, updateNested }) {
     })
   }
   const removeConsideration = (id) => {
+    if (!confirmDelete('esta consideracion')) return
     updateNested('notes', {
       considerations: considerations.filter((item) => item.id !== id),
     })
@@ -1222,6 +1229,7 @@ function AdminSection({ pricingCatalog, setPricingCatalog }) {
   }
 
   const removeCatalogRow = (collection, index) => {
+    if (!confirmDelete('esta fila')) return
     setPricingCatalog((catalog) => ({
       ...catalog,
       [collection]: catalog[collection].filter((_, itemIndex) => itemIndex !== index),

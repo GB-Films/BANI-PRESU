@@ -273,7 +273,7 @@ function App() {
           </div>
           <div className="toolbar">
             {isAdmin && <button className="ghost" onClick={() => duplicateBudget()}><Copy size={16} /> Duplicar</button>}
-            <button className="ghost" onClick={startNewBudget}><Plus size={16} /> {isAdmin ? 'Nuevo' : 'Nuevo proyecto'}</button>
+            {isAdmin && <button className="ghost" onClick={startNewBudget}><Plus size={16} /> Nuevo</button>}
             {isAdmin && <button className="primary" onClick={() => setSection('export')}><Download size={16} /> Exportar</button>}
           </div>
         </header>
@@ -591,11 +591,6 @@ function Dashboard({ budgets, currentId, setCurrentId, deleteBudget, duplicateBu
       <SectionTitle icon={<Sparkles />} eyebrow="LocalStorage" title="Presupuestos guardados" />
       {!isAdmin && (
         <div className="producer-dashboard-hero">
-          <div>
-            <p className="eyebrow">Nuevo flujo</p>
-            <h2>Arma un presupuesto guiado</h2>
-            <span>Completa cliente, tipo de presupuesto, desglose, resumen y export en cinco pasos.</span>
-          </div>
           <button className="primary" onClick={onNewBudget}><Plus size={16} /> Nuevo proyecto</button>
         </div>
       )}

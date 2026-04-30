@@ -663,21 +663,11 @@ h3 {
 .producer-dashboard-hero {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 18px;
-  padding: 18px;
+  padding: 0 0 18px;
   margin-bottom: 18px;
-  border: 1px solid rgba(230, 30, 110, 0.26);
-  background: rgba(230, 30, 110, 0.075);
-}
-
-.producer-dashboard-hero h2 {
-  margin: 4px 0 6px;
-}
-
-.producer-dashboard-hero span {
-  color: #a3a3a3;
-  font-size: 13px;
+  border-bottom: 1px solid var(--line);
 }
 
 .wizard-shell {

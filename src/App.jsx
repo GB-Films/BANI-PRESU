@@ -1120,7 +1120,6 @@ function ConsiderationsPanel({ budget, updateNested }) {
           </div>
         ))}
       </div>
-      <Textarea label="Consideracion adicional libre" value={budget.notes.clientNotes} onChange={(v) => updateNested('notes', { clientNotes: v })} />
     </div>
   )
 }
@@ -1137,7 +1136,6 @@ function ExportSection({ budget, totals, updateNested, exportRef, exportImage, e
   const exportConsiderations = budget.budgetMode === 'Ballpark' && !savedConsiderations.some((item) => item.id?.startsWith('ballpark-')) ? exportConsiderationDefaults : (savedConsiderations.length ? savedConsiderations : exportConsiderationDefaults)
   const visibleConsiderations = [
     ...exportConsiderations.filter((item) => item.included).map((item) => item.text),
-    budget.notes?.clientNotes,
   ].filter(Boolean)
 
   return (

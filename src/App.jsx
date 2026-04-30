@@ -3,8 +3,6 @@ import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import {
   BarChart3,
-  ArrowDown,
-  ArrowUp,
   Copy,
   Download,
   Edit3,
@@ -12,6 +10,7 @@ import {
   FileText,
   Grid3X3,
   Globe,
+  GripVertical,
   Lock,
   LogOut,
   Plus,
@@ -1214,6 +1213,8 @@ function BrandSection({ budget, updateNested }) {
 }
 
 function AdminSection({ pricingCatalog, setPricingCatalog }) {
+  const [dragItem, setDragItem] = useState(null)
+
   const updateCatalogRow = (collection, index, patch) => {
     setPricingCatalog((catalog) => ({
       ...catalog,
@@ -1236,26 +1237,31 @@ function AdminSection({ pricingCatalog, setPricingCatalog }) {
     }))
   }
 
-  const moveCatalogRow = (collection, fromIndex, toIndex) => {
+  const moveCatalogRow = (collection, fromIndex, toIndex, patch = {}) => {
     setPricingCatalog((catalog) => {
       const rows = [...catalog[collection]]
-      if (toIndex < 0 || toIndex >= rows.length) return catalog
+      if (fromIndex < 0 || fromIndex >= rows.length) return catalog
       const [moved] = rows.splice(fromIndex, 1)
-      rows.splice(toIndex, 0, moved)
+      const boundedTarget = Math.max(0, Math.min(toIndex, rows.length))
+      const insertIndex = fromIndex < toIndex ? Math.max(0, boundedTarget - 1) : boundedTarget
+      rows.splice(insertIndex, 0, { ...moved, ...patch })
       return { ...catalog, [collection]: rows }
     })
   }
 
-  const moveRoleWithinSection = (index, direction) => {
-    const section = getRoleSection(pricingCatalog.roles[index]?.area)
-    const sectionIndexes = pricingCatalog.roles
-      .map((row, rowIndex) => ({ rowIndex, section: getRoleSection(row.area) }))
-      .filter((item) => item.section === section)
-      .map((item) => item.rowIndex)
-    const currentPosition = sectionIndexes.indexOf(index)
-    const targetIndex = sectionIndexes[currentPosition + direction]
-    if (targetIndex === undefined) return
-    moveCatalogRow('roles', index, targetIndex)
+  const startDrag = (collection, index) => setDragItem({ collection, index })
+  const clearDrag = () => setDragItem(null)
+  const dropCatalogRow = (collection, toIndex, patch = {}) => {
+    if (!dragItem || dragItem.collection !== collection) return
+    moveCatalogRow(collection, dragItem.index, toIndex, patch)
+    clearDrag()
+  }
+  const dropRoleSection = (section) => {
+    if (!dragItem || dragItem.collection !== 'roles') return
+    const sectionIndexes = pricingCatalog.roles.map((row, index) => ({ row, index })).filter(({ row }) => getRoleSection(row.area) === section).map(({ index }) => index)
+    const toIndex = sectionIndexes.length ? sectionIndexes[sectionIndexes.length - 1] + 1 : pricingCatalog.roles.length
+    moveCatalogRow('roles', dragItem.index, toIndex, { area: defaultAreaForRoleSection(section) })
+    clearDrag()
   }
 
   const resetCatalog = () => setPricingCatalog(defaultPricingCatalog)
@@ -1271,67 +1277,91 @@ function AdminSection({ pricingCatalog, setPricingCatalog }) {
       <AdminCatalogBlock
         title="Valores de equipo"
         actionLabel="Agregar rol"
-        headers={['Orden', 'Rol', 'Area', 'Valor/dia', '']}
+        headers={['', 'Rol', 'Area', 'Valor/dia', '']}
         onAdd={() => addCatalogRow('roles', { role: 'Nuevo rol', area: 'VFX', dayRate: 0 })}
       >
         <RoleCatalogRows
           rows={pricingCatalog.roles}
           updateRow={(index, patch) => updateCatalogRow('roles', index, patch)}
           removeRow={(index) => removeCatalogRow('roles', index)}
-          moveRow={moveRoleWithinSection}
+          startDrag={startDrag}
+          dropRow={(index, section) => dropCatalogRow('roles', index, { area: defaultAreaForRoleSection(section) })}
+          dropSection={dropRoleSection}
+          clearDrag={clearDrag}
         />
       </AdminCatalogBlock>
 
       <AdminCatalogBlock
         title="Presets Ballpark"
         actionLabel="Agregar partida"
-        headers={['Partida', 'Descripcion', 'Cantidad', 'Unitario', '']}
+        headers={['', 'Partida', 'Descripcion', 'Cantidad', 'Unitario', '']}
         onAdd={() => addCatalogRow('ballpark', { name: 'Nueva partida', description: '', quantity: 1, unitValue: 0 })}
       >
-        {pricingCatalog.ballpark.map((row, index) => (
-          <tr key={`ballpark-${index}`}>
-            <td><CellInput value={row.name} onChange={(v) => updateCatalogRow('ballpark', index, { name: v })} /></td>
-            <td><CellInput value={row.description} onChange={(v) => updateCatalogRow('ballpark', index, { description: v })} /></td>
-            <td><CellInput type="number" value={row.quantity} onChange={(v) => updateCatalogRow('ballpark', index, { quantity: Number(v) })} /></td>
-            <td><CellInput type="number" value={row.unitValue} onChange={(v) => updateCatalogRow('ballpark', index, { unitValue: Number(v) })} /></td>
-            <td><IconButton onClick={() => removeCatalogRow('ballpark', index)} icon={<Trash2 size={15} />} /></td>
-          </tr>
-        ))}
+        <CatalogRows
+          collection="ballpark"
+          rows={pricingCatalog.ballpark}
+          startDrag={startDrag}
+          dropRow={(index) => dropCatalogRow('ballpark', index)}
+          clearDrag={clearDrag}
+          renderCells={(row, index) => (
+            <>
+              <td><CellInput value={row.name} onChange={(v) => updateCatalogRow('ballpark', index, { name: v })} /></td>
+              <td><CellInput value={row.description} onChange={(v) => updateCatalogRow('ballpark', index, { description: v })} /></td>
+              <td><CellInput type="number" value={row.quantity} onChange={(v) => updateCatalogRow('ballpark', index, { quantity: Number(v) })} /></td>
+              <td><CellInput type="number" value={row.unitValue} onChange={(v) => updateCatalogRow('ballpark', index, { unitValue: Number(v) })} /></td>
+              <td><IconButton onClick={() => removeCatalogRow('ballpark', index)} icon={<Trash2 size={15} />} /></td>
+            </>
+          )}
+        />
       </AdminCatalogBlock>
 
       <AdminCatalogBlock
         title="Jornadas Ballpark"
         actionLabel="Agregar departamento"
-        headers={['Clave', 'Departamento', 'Descripcion', 'Valor/jornada', '']}
+        headers={['', 'Clave', 'Departamento', 'Descripcion', 'Valor/jornada', '']}
         onAdd={() => addCatalogRow('ballparkDayRates', { key: crypto.randomUUID(), name: 'Nuevo departamento', description: '', unitValue: 0 })}
       >
-        {(pricingCatalog.ballparkDayRates?.length ? pricingCatalog.ballparkDayRates : defaultPricingCatalog.ballparkDayRates).map((row, index) => (
-          <tr key={`ballpark-day-${index}`}>
-            <td><CellInput value={row.key} onChange={(v) => updateCatalogRow('ballparkDayRates', index, { key: v })} /></td>
-            <td><CellInput value={row.name} onChange={(v) => updateCatalogRow('ballparkDayRates', index, { name: v })} /></td>
-            <td><CellInput value={row.description} onChange={(v) => updateCatalogRow('ballparkDayRates', index, { description: v })} /></td>
-            <td><CellInput type="number" value={row.unitValue} onChange={(v) => updateCatalogRow('ballparkDayRates', index, { unitValue: Number(v) })} /></td>
-            <td><IconButton onClick={() => removeCatalogRow('ballparkDayRates', index)} icon={<Trash2 size={15} />} /></td>
-          </tr>
-        ))}
+        <CatalogRows
+          collection="ballparkDayRates"
+          rows={pricingCatalog.ballparkDayRates?.length ? pricingCatalog.ballparkDayRates : defaultPricingCatalog.ballparkDayRates}
+          startDrag={startDrag}
+          dropRow={(index) => dropCatalogRow('ballparkDayRates', index)}
+          clearDrag={clearDrag}
+          renderCells={(row, index) => (
+            <>
+              <td><CellInput value={row.key} onChange={(v) => updateCatalogRow('ballparkDayRates', index, { key: v })} /></td>
+              <td><CellInput value={row.name} onChange={(v) => updateCatalogRow('ballparkDayRates', index, { name: v })} /></td>
+              <td><CellInput value={row.description} onChange={(v) => updateCatalogRow('ballparkDayRates', index, { description: v })} /></td>
+              <td><CellInput type="number" value={row.unitValue} onChange={(v) => updateCatalogRow('ballparkDayRates', index, { unitValue: Number(v) })} /></td>
+              <td><IconButton onClick={() => removeCatalogRow('ballparkDayRates', index)} icon={<Trash2 size={15} />} /></td>
+            </>
+          )}
+        />
       </AdminCatalogBlock>
 
       <AdminCatalogBlock
         title="Presets Detallados"
         actionLabel="Agregar tarea"
-        headers={['Area', 'Tarea', 'Descripcion', 'Unidad', 'Unitario', '']}
+        headers={['', 'Area', 'Tarea', 'Descripcion', 'Unidad', 'Unitario', '']}
         onAdd={() => addCatalogRow('tasks', { area: 'VFX', taskName: 'Nueva tarea', description: '', unit: 'Dia', unitValue: 0 })}
       >
-        {pricingCatalog.tasks.map((row, index) => (
-          <tr key={`task-${index}`}>
-            <td><CellInput value={row.area} onChange={(v) => updateCatalogRow('tasks', index, { area: v })} /></td>
-            <td><CellInput value={row.taskName} onChange={(v) => updateCatalogRow('tasks', index, { taskName: v })} /></td>
-            <td><CellInput value={row.description} onChange={(v) => updateCatalogRow('tasks', index, { description: v })} /></td>
-            <td><CellSelect value={row.unit} options={unitOptions} onChange={(v) => updateCatalogRow('tasks', index, { unit: v })} /></td>
-            <td><CellInput type="number" value={row.unitValue} onChange={(v) => updateCatalogRow('tasks', index, { unitValue: Number(v) })} /></td>
-            <td><IconButton onClick={() => removeCatalogRow('tasks', index)} icon={<Trash2 size={15} />} /></td>
-          </tr>
-        ))}
+        <CatalogRows
+          collection="tasks"
+          rows={pricingCatalog.tasks}
+          startDrag={startDrag}
+          dropRow={(index) => dropCatalogRow('tasks', index)}
+          clearDrag={clearDrag}
+          renderCells={(row, index) => (
+            <>
+              <td><CellInput value={row.area} onChange={(v) => updateCatalogRow('tasks', index, { area: v })} /></td>
+              <td><CellInput value={row.taskName} onChange={(v) => updateCatalogRow('tasks', index, { taskName: v })} /></td>
+              <td><CellInput value={row.description} onChange={(v) => updateCatalogRow('tasks', index, { description: v })} /></td>
+              <td><CellSelect value={row.unit} options={unitOptions} onChange={(v) => updateCatalogRow('tasks', index, { unit: v })} /></td>
+              <td><CellInput type="number" value={row.unitValue} onChange={(v) => updateCatalogRow('tasks', index, { unitValue: Number(v) })} /></td>
+              <td><IconButton onClick={() => removeCatalogRow('tasks', index)} icon={<Trash2 size={15} />} /></td>
+            </>
+          )}
+        />
       </AdminCatalogBlock>
 
       <div className="admin-actions">
@@ -1364,7 +1394,45 @@ function getRoleSection(area = '') {
   return 'POST'
 }
 
-function RoleCatalogRows({ rows, updateRow, removeRow, moveRow }) {
+function defaultAreaForRoleSection(section) {
+  if (section === '3D') return '3D'
+  if (section === 'VFX') return 'VFX'
+  return 'Postproduccion'
+}
+
+function DragHandle({ collection, index, startDrag, clearDrag }) {
+  return (
+    <button
+      type="button"
+      className="drag-handle"
+      title="Arrastrar fila"
+      draggable
+      onDragStart={(event) => {
+        event.dataTransfer.effectAllowed = 'move'
+        startDrag(collection, index)
+      }}
+      onDragEnd={clearDrag}
+    >
+      <GripVertical size={16} />
+    </button>
+  )
+}
+
+function CatalogRows({ collection, rows, startDrag, dropRow, clearDrag, renderCells }) {
+  return rows.map((row, index) => (
+    <tr
+      key={`${collection}-${index}`}
+      className="draggable-row"
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={() => dropRow(index)}
+    >
+      <td><DragHandle collection={collection} index={index} startDrag={startDrag} clearDrag={clearDrag} /></td>
+      {renderCells(row, index)}
+    </tr>
+  ))
+}
+
+function RoleCatalogRows({ rows, updateRow, removeRow, startDrag, dropRow, dropSection, clearDrag }) {
   return roleSections.map((section) => {
     const sectionRows = rows
       .map((row, index) => ({ row, index }))
@@ -1372,17 +1440,12 @@ function RoleCatalogRows({ rows, updateRow, removeRow, moveRow }) {
 
     return (
       <Fragment key={section}>
-        <tr className="catalog-section-row">
+        <tr className="catalog-section-row" onDragOver={(event) => event.preventDefault()} onDrop={() => dropSection(section)}>
           <td colSpan="5">{section}</td>
         </tr>
-        {sectionRows.map(({ row, index }, sectionIndex) => (
-          <tr key={`role-${index}`}>
-            <td>
-              <div className="order-actions">
-                <IconButton title="Subir" disabled={sectionIndex === 0} onClick={() => moveRow(index, -1)} icon={<ArrowUp size={14} />} />
-                <IconButton title="Bajar" disabled={sectionIndex === sectionRows.length - 1} onClick={() => moveRow(index, 1)} icon={<ArrowDown size={14} />} />
-              </div>
-            </td>
+        {sectionRows.map(({ row, index }) => (
+          <tr key={`role-${index}`} className="draggable-row" onDragOver={(event) => event.preventDefault()} onDrop={() => dropRow(index, section)}>
+            <td><DragHandle collection="roles" index={index} startDrag={startDrag} clearDrag={clearDrag} /></td>
             <td><CellInput value={row.role} onChange={(v) => updateRow(index, { role: v })} /></td>
             <td><CellSelect value={row.area} options={areaOptions} onChange={(v) => updateRow(index, { area: v })} /></td>
             <td><CellInput type="number" value={row.dayRate} onChange={(v) => updateRow(index, { dayRate: Number(v) })} /></td>

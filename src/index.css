@@ -1056,15 +1056,30 @@ h3 {
   letter-spacing: 0.18em;
 }
 
-.order-actions {
-  display: flex;
-  gap: 6px;
+.draggable-row {
+  transition: background 140ms ease, opacity 140ms ease;
 }
 
-.order-actions .icon-button {
-  width: 34px;
-  min-height: 34px;
-  padding: 7px;
+.draggable-row:hover td {
+  background: rgba(230, 30, 110, 0.035);
+}
+
+.drag-handle {
+  width: 38px;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: var(--vault-radius-sm);
+  background: rgba(255, 255, 255, 0.035);
+  color: #777;
+  display: inline-grid;
+  place-items: center;
+  cursor: grab;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+  color: var(--bani-pink);
+  border-color: rgba(230, 30, 110, 0.45);
 }
 
 .admin-actions {

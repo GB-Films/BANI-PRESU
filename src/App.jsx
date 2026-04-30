@@ -8,8 +8,11 @@ import {
   FileImage,
   FileText,
   Grid3X3,
+  Lock,
+  LogOut,
   Plus,
   Settings,
+  ShieldCheck,
   Sparkles,
   Trash2,
 } from 'lucide-react'
@@ -28,7 +31,7 @@ import {
   money,
   teamSubtotal,
 } from './lib/budget'
-import { loadBudgets, loadCurrentId, loadPricingCatalog, loadUserRole, saveBudgets, saveCurrentId, savePricingCatalog, saveUserRole } from './lib/storage'
+import { clearSession, loadBudgets, loadCurrentId, loadPricingCatalog, loadSession, saveBudgets, saveCurrentId, savePricingCatalog, saveSession } from './lib/storage'
 
 const navItems = [
   ['dashboard', 'Dashboard'],
@@ -49,6 +52,10 @@ const defaultPricingCatalog = {
   ballpark: ballparkPresets,
   tasks: taskPresets,
 }
+const appUsers = {
+  admin: { password: 'admin', role: 'admin', label: 'Administrador' },
+  crew: { password: 'crew', role: 'producer', label: 'Crew / Productor' },
+}
 
 function App() {
   const [budgets, setBudgets] = useState(() => {
@@ -57,12 +64,14 @@ function App() {
   })
   const [currentId, setCurrentId] = useState(() => loadCurrentId() || budgets[0]?.id)
   const [section, setSection] = useState('dashboard')
-  const [userRole, setUserRole] = useState(() => loadUserRole())
+  const [session, setSession] = useState(() => loadSession())
+  const [loginError, setLoginError] = useState('')
   const [pricingCatalog, setPricingCatalog] = useState(() => loadPricingCatalog(defaultPricingCatalog))
   const exportRef = useRef(null)
 
   const budget = budgets.find((item) => item.id === currentId) || budgets[0]
   const totals = useMemo(() => calculateBudget(budget), [budget])
+  const userRole = session?.role || 'producer'
   const isAdmin = userRole === 'admin'
   const visibleNavItems = navItems.filter(([id]) => isAdmin || !['brand', 'admin'].includes(id))
 
@@ -75,13 +84,37 @@ function App() {
   }, [currentId])
 
   useEffect(() => {
-    saveUserRole(userRole)
     if (!isAdmin && ['brand', 'admin'].includes(section)) setSection('dashboard')
-  }, [isAdmin, section, userRole])
+  }, [isAdmin, section])
 
   useEffect(() => {
     savePricingCatalog(pricingCatalog)
   }, [pricingCatalog])
+
+  const handleLogin = (username, password) => {
+    const normalized = username.trim().toLowerCase()
+    const credentials = appUsers[normalized]
+    if (!credentials || credentials.password !== password.trim().toLowerCase()) {
+      setLoginError('Credenciales invalidas para BANI PRESU.')
+      return
+    }
+    const nextSession = {
+      username: normalized,
+      role: credentials.role,
+      label: credentials.label,
+      loggedAt: new Date().toISOString(),
+    }
+    setLoginError('')
+    setSession(nextSession)
+    saveSession(nextSession)
+    setSection('dashboard')
+  }
+
+  const handleLogout = () => {
+    clearSession()
+    setSession(null)
+    setSection('dashboard')
+  }
 
   const updateBudget = (patch) => {
     setBudgets((items) =>
@@ -144,6 +177,10 @@ function App() {
     pdf.save(`${budget.budgetNumber}-${budget.projectName || 'presupuesto'}.pdf`)
   }
 
+  if (!session) {
+    return <LoginScreen onLogin={handleLogin} loginError={loginError} />
+  }
+
   return (
     <div className="app-shell" style={{ '--brand': budget.brandSettings.primaryColor, '--accent': budget.brandSettings.secondaryColor }}>
       <aside className="sidebar">
@@ -161,7 +198,7 @@ function App() {
             </button>
           ))}
         </nav>
-        <UserRoleSwitch userRole={userRole} setUserRole={setUserRole} />
+        <SessionPanel session={session} onLogout={handleLogout} />
         <div className="side-total">
           <span>Total final</span>
           <strong>{money(totals.totalFinal, budget.currency)}</strong>
@@ -195,13 +232,48 @@ function App() {
   )
 }
 
-function UserRoleSwitch({ userRole, setUserRole }) {
+function SessionPanel({ session, onLogout }) {
   return (
-    <div className="role-switch">
-      <span>Usuario</span>
+    <div className="session-panel">
+      <span>Sesion activa</span>
       <div>
-        <button className={userRole === 'producer' ? 'active' : ''} onClick={() => setUserRole('producer')}>Productor</button>
-        <button className={userRole === 'admin' ? 'active' : ''} onClick={() => setUserRole('admin')}>Admin</button>
+        <strong>{session.label}</strong>
+        <small>{session.username}</small>
+      </div>
+      <button onClick={onLogout}><LogOut size={14} /> Salir</button>
+    </div>
+  )
+}
+
+function LoginScreen({ onLogin, loginError }) {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+
+  return (
+    <div className="login-screen">
+      <div className="login-shell">
+        <div className="login-logo">
+          <img src={`${assetBase}logo.png`} alt="BANI VFX" />
+          <span>PRESU LAB</span>
+        </div>
+        <form className="login-card" onSubmit={(event) => { event.preventDefault(); onLogin(username, password) }}>
+          <div className="login-line" />
+          <h1><Lock size={22} /> Acceso Presu</h1>
+          <label>
+            <span>Usuario</span>
+            <input value={username} onChange={(event) => setUsername(event.target.value)} autoFocus placeholder="admin o crew" />
+          </label>
+          <label>
+            <span>Contrasena</span>
+            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="********" />
+          </label>
+          {loginError && <div className="login-error">{loginError}</div>}
+          <button type="submit">Iniciar sesion</button>
+          <div className="login-secure">
+            <ShieldCheck size={13} />
+            <span>Acceso interno BANI VFX</span>
+          </div>
+        </form>
       </div>
     </div>
   )

@@ -42,6 +42,7 @@ const navItems = [
 ]
 
 const chartColors = ['#e61e6e', '#ffffff', '#22c55e', '#71717a', '#a1a1aa', '#f43f5e', '#52525b']
+const assetBase = import.meta.env.BASE_URL
 
 function App() {
   const [budgets, setBudgets] = useState(() => {
@@ -128,7 +129,7 @@ function App() {
     <div className="app-shell" style={{ '--brand': budget.brandSettings.primaryColor, '--accent': budget.brandSettings.secondaryColor }}>
       <aside className="sidebar">
         <div className="brand-lockup">
-          <img src={budget.brandSettings.logo || '/logo.png'} alt="BANI VFX" />
+          <img src={budget.brandSettings.logo || `${assetBase}logo.png`} alt="BANI VFX" />
           <div>
             <strong>BANI VFX</strong>
             <span>Presu Lab</span>
@@ -174,11 +175,128 @@ function App() {
 }
 
 function Dashboard({ budgets, currentId, setCurrentId, deleteBudget, duplicateBudget, setSection }) {
+  const [filters, setFilters] = useState({
+    search: '',
+    client: 'Todos',
+    dateFrom: '',
+    dateTo: '',
+    sortBy: 'updatedDesc',
+  })
+
+  const clients = useMemo(() => {
+    const names = budgets.map((item) => item.client?.trim()).filter(Boolean)
+    return ['Todos', ...Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, 'es'))]
+  }, [budgets])
+
+  const filteredBudgets = useMemo(() => {
+    const query = filters.search.trim().toLowerCase()
+    const fromTime = filters.dateFrom ? new Date(`${filters.dateFrom}T00:00:00`).getTime() : null
+    const toTime = filters.dateTo ? new Date(`${filters.dateTo}T23:59:59`).getTime() : null
+
+    return budgets
+      .filter((item) => {
+        const itemDate = item.date ? new Date(`${item.date}T12:00:00`).getTime() : 0
+        const searchable = [
+          item.projectName,
+          item.client,
+          item.budgetNumber,
+          item.version,
+          item.agency,
+          item.productionCompany,
+          item.owner,
+        ].join(' ').toLowerCase()
+
+        if (query && !searchable.includes(query)) return false
+        if (filters.client !== 'Todos' && item.client !== filters.client) return false
+        if (fromTime && itemDate < fromTime) return false
+        if (toTime && itemDate > toTime) return false
+        return true
+      })
+      .sort((a, b) => {
+        const totalsA = calculateBudget(a).totalFinal
+        const totalsB = calculateBudget(b).totalFinal
+        const dateA = new Date(a.date || a.updatedAt || 0).getTime()
+        const dateB = new Date(b.date || b.updatedAt || 0).getTime()
+        const updatedA = new Date(a.updatedAt || a.date || 0).getTime()
+        const updatedB = new Date(b.updatedAt || b.date || 0).getTime()
+
+        switch (filters.sortBy) {
+          case 'projectAsc':
+            return (a.projectName || '').localeCompare(b.projectName || '', 'es')
+          case 'projectDesc':
+            return (b.projectName || '').localeCompare(a.projectName || '', 'es')
+          case 'clientAsc':
+            return (a.client || '').localeCompare(b.client || '', 'es')
+          case 'budgetAsc':
+            return (a.budgetNumber || '').localeCompare(b.budgetNumber || '', 'es', { numeric: true })
+          case 'budgetDesc':
+            return (b.budgetNumber || '').localeCompare(a.budgetNumber || '', 'es', { numeric: true })
+          case 'dateAsc':
+            return dateA - dateB
+          case 'dateDesc':
+            return dateB - dateA
+          case 'amountAsc':
+            return totalsA - totalsB
+          case 'amountDesc':
+            return totalsB - totalsA
+          case 'updatedAsc':
+            return updatedA - updatedB
+          case 'updatedDesc':
+          default:
+            return updatedB - updatedA
+        }
+      })
+  }, [budgets, filters])
+
+  const updateFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value }))
+  const resetFilters = () => setFilters({ search: '', client: 'Todos', dateFrom: '', dateTo: '', sortBy: 'updatedDesc' })
+
   return (
     <section className="panel">
       <SectionTitle icon={<Sparkles />} eyebrow="LocalStorage" title="Presupuestos guardados" />
+      <div className="dashboard-controls">
+        <Input label="Buscar proyecto / cliente / presupuesto" value={filters.search} onChange={(v) => updateFilter('search', v)} />
+        <Select label="Cliente" value={filters.client} options={clients} onChange={(v) => updateFilter('client', v)} />
+        <Input type="date" label="Desde" value={filters.dateFrom} onChange={(v) => updateFilter('dateFrom', v)} />
+        <Input type="date" label="Hasta" value={filters.dateTo} onChange={(v) => updateFilter('dateTo', v)} />
+        <Select
+          label="Orden"
+          value={filters.sortBy}
+          options={[
+            'updatedDesc',
+            'updatedAsc',
+            'dateDesc',
+            'dateAsc',
+            'projectAsc',
+            'projectDesc',
+            'clientAsc',
+            'budgetAsc',
+            'budgetDesc',
+            'amountDesc',
+            'amountAsc',
+          ]}
+          labels={{
+            updatedDesc: 'Ultimos editados',
+            updatedAsc: 'Primeros editados',
+            dateDesc: 'Fecha: nuevo a viejo',
+            dateAsc: 'Fecha: viejo a nuevo',
+            projectAsc: 'Proyecto A-Z',
+            projectDesc: 'Proyecto Z-A',
+            clientAsc: 'Cliente A-Z',
+            budgetAsc: 'Presupuesto menor a mayor',
+            budgetDesc: 'Presupuesto mayor a menor',
+            amountDesc: 'Monto mayor a menor',
+            amountAsc: 'Monto menor a mayor',
+          }}
+          onChange={(v) => updateFilter('sortBy', v)}
+        />
+        <button className="ghost dashboard-reset" onClick={resetFilters}>Limpiar</button>
+      </div>
+      <div className="dashboard-result-count">
+        <span>{filteredBudgets.length} de {budgets.length} presupuestos</span>
+      </div>
       <div className="budget-grid">
-        {budgets.map((item) => {
+        {filteredBudgets.map((item) => {
           const totals = calculateBudget(item)
           return (
             <article key={item.id} className={`budget-card ${item.id === currentId ? 'selected' : ''}`}>
@@ -186,6 +304,10 @@ function Dashboard({ budgets, currentId, setCurrentId, deleteBudget, duplicateBu
                 <p className="eyebrow">{item.client || 'Sin cliente'} / {item.budgetMode}</p>
                 <h3>{item.projectName}</h3>
                 <span>{item.budgetNumber} - {item.version}</span>
+              </div>
+              <div className="budget-card-meta">
+                <span>Fecha: {item.date || '-'}</span>
+                <span>Editado: {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('es-AR') : '-'}</span>
               </div>
               <strong>{money(totals.totalFinal, item.currency)}</strong>
               <div className="row-actions">
@@ -196,6 +318,12 @@ function Dashboard({ budgets, currentId, setCurrentId, deleteBudget, duplicateBu
             </article>
           )
         })}
+        {!filteredBudgets.length && (
+          <div className="empty-state">
+            <h3>Sin resultados</h3>
+            <p>No hay presupuestos que coincidan con esos filtros.</p>
+          </div>
+        )}
       </div>
     </section>
   )
@@ -349,7 +477,7 @@ function ExportSection({ budget, totals, updateNested, exportRef, exportImage, e
         {budget.brandSettings.technicalGrid && <div className="export-grid-bg" />}
         {opts.cover && (
           <div className="export-cover">
-            <div className="export-logo"><img src={budget.brandSettings.logo || '/logo.png'} alt="BANI VFX" /></div>
+            <div className="export-logo"><img src={budget.brandSettings.logo || `${assetBase}logo.png`} alt="BANI VFX" /></div>
             <p>{budget.budgetNumber} / {budget.version}</p>
             <h2>{budget.projectName}</h2>
             <span>{budget.client || 'Cliente'} - {budget.date}</span>
@@ -502,8 +630,8 @@ function Textarea({ label, value, onChange }) {
   return <label className="field"><span>{label}</span><textarea value={value ?? ''} onChange={(e) => onChange(e.target.value)} /></label>
 }
 
-function Select({ label, value, options, onChange }) {
-  return <label className="field"><span>{label}</span><select value={value} onChange={(e) => onChange(e.target.value)}>{options.map((option) => <option key={option}>{option}</option>)}</select></label>
+function Select({ label, value, options, labels = {}, onChange }) {
+  return <label className="field"><span>{label}</span><select value={value} onChange={(e) => onChange(e.target.value)}>{options.map((option) => <option key={option} value={option}>{labels[option] || option}</option>)}</select></label>
 }
 
 function CellInput({ value, onChange, type = 'text' }) {

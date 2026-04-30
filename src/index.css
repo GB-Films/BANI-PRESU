@@ -259,19 +259,11 @@ nav {
 }
 
 .session-panel {
-  display: grid;
-  gap: 10px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.025);
-}
-
-.session-panel > span {
-  color: #737373;
-  font-size: 10px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-left: 18px;
+  border-left: 1px solid var(--line-strong);
 }
 
 .session-panel strong,
@@ -281,36 +273,56 @@ nav {
 
 .session-panel strong {
   color: #fff;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 900;
   text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .session-panel small {
-  color: var(--bani-pink);
+  color: #737373;
   font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 10px;
+  font-size: 9px;
   text-transform: uppercase;
 }
 
+.session-panel a,
 .session-panel button {
-  min-height: 34px;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.035);
-  color: #a3a3a3;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  color: #666;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  font-size: 10px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  padding: 0;
 }
 
+.session-panel a:hover,
 .session-panel button:hover {
-  color: #fff;
-  border-color: rgba(230, 30, 110, 0.5);
+  color: var(--bani-pink);
+}
+
+.session-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.session-user img {
+  width: 38px;
+  height: 38px;
+  object-fit: cover;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #000;
+}
+
+.session-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--line-strong);
 }
 
 .role-switch > span {
@@ -1106,6 +1118,17 @@ input[type="color"] {
 
   .toolbar button {
     flex: 1;
+  }
+
+  .session-panel {
+    width: 100%;
+    justify-content: flex-end;
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .session-panel button {
+    flex: 0 0 32px;
   }
 
   .producer-dashboard-hero,

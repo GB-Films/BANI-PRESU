@@ -8,6 +8,7 @@ import {
   FileImage,
   FileText,
   Grid3X3,
+  Globe,
   Lock,
   LogOut,
   Plus,
@@ -258,7 +259,6 @@ function App() {
             </button>
           ))}
         </nav>
-        <SessionPanel session={session} onLogout={handleLogout} />
         <div className="side-total">
           <span>Total final</span>
           <strong>{money(totals.totalFinal, budget.currency)}</strong>
@@ -275,6 +275,7 @@ function App() {
             {isAdmin && <button className="ghost" onClick={() => duplicateBudget()}><Copy size={16} /> Duplicar</button>}
             {isAdmin && <button className="ghost" onClick={startNewBudget}><Plus size={16} /> Nuevo</button>}
             {isAdmin && <button className="primary" onClick={() => setSection('export')}><Download size={16} /> Exportar</button>}
+            <SessionPanel session={session} onLogout={handleLogout} />
           </div>
         </header>
 
@@ -313,13 +314,38 @@ function App() {
 function SessionPanel({ session, onLogout }) {
   return (
     <div className="session-panel">
-      <span>Sesion activa</span>
-      <div>
-        <strong>{session.label}</strong>
-        <small>{session.username}</small>
+      <a href="https://www.instagram.com/banivfx/" target="_blank" rel="noreferrer" title="Instagram BANI VFX"><InstagramIcon /></a>
+      <a href="https://www.youtube.com/c/BANIVFX" target="_blank" rel="noreferrer" title="YouTube BANI VFX"><YoutubeIcon /></a>
+      <a href="https://www.bani-vfx.com" target="_blank" rel="noreferrer" title="Web BANI VFX"><Globe size={16} /></a>
+      <div className="session-user">
+        <img src={`${assetBase}avatar.png`} alt="BANI VFX" />
+        <div>
+          <strong>{session.username === 'crew' ? 'BANIVFX' : session.username}</strong>
+          <small>{session.label}</small>
+        </div>
       </div>
-      <button onClick={onLogout}><LogOut size={14} /> Salir</button>
+      <div className="session-divider" />
+      <button onClick={onLogout} title="Cerrar sesion"><LogOut size={16} /></button>
     </div>
+  )
+}
+
+function InstagramIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="4" width="16" height="16" rx="5" fill="none" stroke="currentColor" strokeWidth="2" />
+      <circle cx="12" cy="12" r="3.5" fill="none" stroke="currentColor" strokeWidth="2" />
+      <circle cx="17" cy="7" r="1.2" fill="currentColor" />
+    </svg>
+  )
+}
+
+function YoutubeIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3" y="6" width="18" height="12" rx="4" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M10 9.5v5l5-2.5-5-2.5Z" fill="currentColor" />
+    </svg>
   )
 }
 

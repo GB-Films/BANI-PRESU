@@ -49,6 +49,12 @@ export const createBudget = () => ({
   owner: '',
   currency: 'USD',
   budgetMode: 'Ambos',
+  productionSpecs: {
+    videoDuration: '',
+    shotCount: '',
+    deliveryFormats: '',
+    complexity: 'Media',
+  },
   teamMembers: [
     createTeamMember({ role: 'VFX Supervisor', area: 'Supervision', dayRate: 650, days: 2 }),
     createTeamMember({ role: 'Compositor', area: 'VFX', dayRate: 440, days: 5 }),

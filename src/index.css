@@ -638,6 +638,132 @@ h3 {
   text-transform: uppercase;
 }
 
+.producer-dashboard-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px;
+  margin-bottom: 18px;
+  border: 1px solid rgba(230, 30, 110, 0.26);
+  background: rgba(230, 30, 110, 0.075);
+}
+
+.producer-dashboard-hero h2 {
+  margin: 4px 0 6px;
+}
+
+.producer-dashboard-hero span {
+  color: #a3a3a3;
+  font-size: 13px;
+}
+
+.wizard-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.wizard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.wizard-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.wizard-steps button {
+  min-height: 54px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  color: #737373;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.wizard-steps button span {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 1px solid currentColor;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+
+.wizard-steps button.active {
+  color: #fff;
+  border-color: rgba(230, 30, 110, 0.65);
+  background: rgba(230, 30, 110, 0.18);
+}
+
+.wizard-steps button.done {
+  color: var(--bani-pink);
+}
+
+.wizard-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.wizard-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 0 0;
+}
+
+.wizard-footer button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.type-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.type-choice-grid button {
+  min-height: 170px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.035);
+  color: #fff;
+  padding: 20px;
+  text-align: left;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.type-choice-grid button.selected,
+.type-choice-grid button:hover {
+  border-color: rgba(230, 30, 110, 0.58);
+  background: rgba(230, 30, 110, 0.1);
+}
+
+.type-choice-grid strong {
+  font-size: 20px;
+  font-weight: 900;
+  font-style: italic;
+  text-transform: uppercase;
+}
+
+.type-choice-grid span {
+  color: #a3a3a3;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .budget-card,
 .chart-card,
 .fee-panel,
@@ -943,5 +1069,16 @@ input[type="color"] {
 
   .toolbar button {
     flex: 1;
+  }
+
+  .producer-dashboard-hero,
+  .wizard-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .wizard-steps,
+  .type-choice-grid {
+    grid-template-columns: 1fr;
   }
 }

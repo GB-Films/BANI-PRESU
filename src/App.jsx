@@ -64,6 +64,8 @@ function App() {
   })
   const [currentId, setCurrentId] = useState(() => loadCurrentId() || budgets[0]?.id)
   const [section, setSection] = useState('dashboard')
+  const [wizardActive, setWizardActive] = useState(false)
+  const [wizardStep, setWizardStep] = useState(0)
   const [session, setSession] = useState(() => loadSession())
   const [loginError, setLoginError] = useState('')
   const [pricingCatalog, setPricingCatalog] = useState(() => loadPricingCatalog(defaultPricingCatalog))
@@ -73,7 +75,7 @@ function App() {
   const totals = useMemo(() => calculateBudget(budget), [budget])
   const userRole = session?.role || 'producer'
   const isAdmin = userRole === 'admin'
-  const visibleNavItems = navItems.filter(([id]) => isAdmin || !['brand', 'admin'].includes(id))
+  const visibleNavItems = isAdmin ? navItems : navItems.filter(([id]) => id === 'dashboard')
 
   useEffect(() => {
     saveBudgets(budgets)
@@ -84,8 +86,8 @@ function App() {
   }, [currentId])
 
   useEffect(() => {
-    if (!isAdmin && ['brand', 'admin'].includes(section)) setSection('dashboard')
-  }, [isAdmin, section])
+    if (!isAdmin && section !== 'dashboard' && !wizardActive) setSection('dashboard')
+  }, [isAdmin, section, wizardActive])
 
   useEffect(() => {
     savePricingCatalog(pricingCatalog)
@@ -114,6 +116,8 @@ function App() {
     clearSession()
     setSession(null)
     setSection('dashboard')
+    setWizardActive(false)
+    setWizardStep(0)
   }
 
   const updateBudget = (patch) => {
@@ -134,6 +138,26 @@ function App() {
 
   const removeRow = (collection, id) => {
     updateBudget({ [collection]: budget[collection].filter((row) => row.id !== id) })
+  }
+
+  const startNewBudget = () => {
+    const fresh = { ...createBudget(), currency: budget?.currency || 'USD' }
+    setBudgets((items) => [fresh, ...items])
+    setCurrentId(fresh.id)
+    if (isAdmin) {
+      setSection('project')
+      return
+    }
+    setWizardActive(true)
+    setWizardStep(0)
+    setSection('dashboard')
+  }
+
+  const openWizardForBudget = (id) => {
+    setCurrentId(id)
+    setWizardActive(true)
+    setWizardStep(0)
+    setSection('dashboard')
   }
 
   const duplicateBudget = (source = budget) => {
@@ -212,21 +236,39 @@ function App() {
             <h1>{budget.projectName}</h1>
           </div>
           <div className="toolbar">
-            <button className="ghost" onClick={() => duplicateBudget()}><Copy size={16} /> Duplicar</button>
-            <button className="ghost" onClick={() => setBudgets((items) => [{ ...createBudget(), currency: budget.currency }, ...items])}><Plus size={16} /> Nuevo</button>
-            <button className="primary" onClick={() => setSection('export')}><Download size={16} /> Exportar</button>
+            {isAdmin && <button className="ghost" onClick={() => duplicateBudget()}><Copy size={16} /> Duplicar</button>}
+            <button className="ghost" onClick={startNewBudget}><Plus size={16} /> {isAdmin ? 'Nuevo' : 'Nuevo proyecto'}</button>
+            {isAdmin && <button className="primary" onClick={() => setSection('export')}><Download size={16} /> Exportar</button>}
           </div>
         </header>
 
-        {section === 'dashboard' && <Dashboard budgets={budgets} currentId={currentId} setCurrentId={setCurrentId} deleteBudget={deleteBudget} duplicateBudget={duplicateBudget} setSection={setSection} />}
-        {section === 'project' && <ProjectSection budget={budget} updateBudget={updateBudget} updateNested={updateNested} />}
-        {section === 'team' && <TeamSection budget={budget} isAdmin={isAdmin} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
-        {section === 'ballpark' && <BallparkSection budget={budget} isAdmin={isAdmin} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
-        {section === 'detailed' && <DetailedSection budget={budget} isAdmin={isAdmin} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
-        {section === 'summary' && <SummarySection budget={budget} totals={totals} updateNested={updateNested} />}
-        {section === 'export' && <ExportSection budget={budget} totals={totals} updateNested={updateNested} exportRef={exportRef} exportImage={exportImage} exportPdf={exportPdf} />}
-        {section === 'brand' && isAdmin && <BrandSection budget={budget} updateNested={updateNested} />}
-        {section === 'admin' && isAdmin && <AdminSection pricingCatalog={pricingCatalog} setPricingCatalog={setPricingCatalog} />}
+        {!isAdmin && wizardActive && (
+          <ProducerWizard
+            budget={budget}
+            totals={totals}
+            wizardStep={wizardStep}
+            setWizardStep={setWizardStep}
+            setWizardActive={setWizardActive}
+            pricingCatalog={pricingCatalog}
+            updateBudget={updateBudget}
+            updateNested={updateNested}
+            updateRow={updateRow}
+            removeRow={removeRow}
+            exportRef={exportRef}
+            exportImage={exportImage}
+            exportPdf={exportPdf}
+          />
+        )}
+        {!isAdmin && !wizardActive && section === 'dashboard' && <Dashboard budgets={budgets} currentId={currentId} setCurrentId={setCurrentId} deleteBudget={deleteBudget} duplicateBudget={duplicateBudget} setSection={setSection} onNewBudget={startNewBudget} onOpenWizard={openWizardForBudget} isAdmin={isAdmin} />}
+        {isAdmin && section === 'dashboard' && <Dashboard budgets={budgets} currentId={currentId} setCurrentId={setCurrentId} deleteBudget={deleteBudget} duplicateBudget={duplicateBudget} setSection={setSection} onNewBudget={startNewBudget} isAdmin={isAdmin} />}
+        {isAdmin && section === 'project' && <ProjectSection budget={budget} updateBudget={updateBudget} updateNested={updateNested} />}
+        {isAdmin && section === 'team' && <TeamSection budget={budget} isAdmin={isAdmin} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
+        {isAdmin && section === 'ballpark' && <BallparkSection budget={budget} isAdmin={isAdmin} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
+        {isAdmin && section === 'detailed' && <DetailedSection budget={budget} isAdmin={isAdmin} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
+        {isAdmin && section === 'summary' && <SummarySection budget={budget} totals={totals} updateNested={updateNested} />}
+        {isAdmin && section === 'export' && <ExportSection budget={budget} totals={totals} updateNested={updateNested} exportRef={exportRef} exportImage={exportImage} exportPdf={exportPdf} />}
+        {isAdmin && section === 'brand' && <BrandSection budget={budget} updateNested={updateNested} />}
+        {isAdmin && section === 'admin' && <AdminSection pricingCatalog={pricingCatalog} setPricingCatalog={setPricingCatalog} />}
       </main>
     </div>
   )
@@ -279,7 +321,106 @@ function LoginScreen({ onLogin, loginError }) {
   )
 }
 
-function Dashboard({ budgets, currentId, setCurrentId, deleteBudget, duplicateBudget, setSection }) {
+const wizardSteps = [
+  'Cliente',
+  'Tipo',
+  'Desglose',
+  'Resumen',
+  'Export',
+]
+
+function ProducerWizard({ budget, totals, wizardStep, setWizardStep, setWizardActive, pricingCatalog, updateBudget, updateNested, updateRow, removeRow, exportRef, exportImage, exportPdf }) {
+  const goNext = () => setWizardStep((step) => Math.min(step + 1, wizardSteps.length - 1))
+  const goBack = () => setWizardStep((step) => Math.max(step - 1, 0))
+
+  return (
+    <div className="wizard-shell">
+      <div className="wizard-header">
+        <div>
+          <p className="eyebrow">Armado guiado</p>
+          <h2>{wizardSteps[wizardStep]}</h2>
+        </div>
+        <button className="ghost" onClick={() => setWizardActive(false)}>Volver al dashboard</button>
+      </div>
+
+      <div className="wizard-steps">
+        {wizardSteps.map((label, index) => (
+          <button key={label} className={index === wizardStep ? 'active' : index < wizardStep ? 'done' : ''} onClick={() => setWizardStep(index)}>
+            <span>{index + 1}</span>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {wizardStep === 0 && <ProjectSection budget={budget} updateBudget={updateBudget} updateNested={updateNested} showBudgetType={false} />}
+      {wizardStep === 1 && <BudgetTypeStep budget={budget} pricingCatalog={pricingCatalog} updateBudget={updateBudget} />}
+      {wizardStep === 2 && <ProjectBreakdownStep budget={budget} pricingCatalog={pricingCatalog} updateNested={updateNested} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
+      {wizardStep === 3 && <SummarySection budget={budget} totals={totals} updateNested={updateNested} />}
+      {wizardStep === 4 && <ExportSection budget={budget} totals={totals} updateNested={updateNested} exportRef={exportRef} exportImage={exportImage} exportPdf={exportPdf} />}
+
+      <div className="wizard-footer">
+        <button className="ghost" onClick={goBack} disabled={wizardStep === 0}>Anterior</button>
+        {wizardStep < wizardSteps.length - 1 ? (
+          <button className="primary" onClick={goNext}>Siguiente</button>
+        ) : (
+          <button className="primary" onClick={() => setWizardActive(false)}>Terminar</button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function BudgetTypeStep({ budget, pricingCatalog, updateBudget }) {
+  const pickPreset = () => updateBudget({
+    budgetMode: 'Ballpark',
+    ballparkItems: pricingCatalog.ballpark.slice(0, 3).map(createBallparkItem),
+  })
+
+  return (
+    <section className="panel">
+      <SectionTitle icon={<Sparkles />} eyebrow="Tipo de presupuesto" title="Elegi como queres armarlo" />
+      <div className="type-choice-grid">
+        <button className={budget.budgetMode === 'Detallado' ? 'selected' : ''} onClick={() => updateBudget({ budgetMode: 'Detallado' })}>
+          <strong>Detallado</strong>
+          <span>Para desglosar tareas, planos, responsables y cantidades.</span>
+        </button>
+        <button className={budget.budgetMode === 'Ballpark' ? 'selected' : ''} onClick={() => updateBudget({ budgetMode: 'Ballpark' })}>
+          <strong>Ballpark</strong>
+          <span>Para una estimacion rapida con partidas grandes.</span>
+        </button>
+        <button onClick={pickPreset}>
+          <strong>Preset definido</strong>
+          <span>Arranca desde partidas precargadas por Admin y ajusta cantidades.</span>
+        </button>
+      </div>
+    </section>
+  )
+}
+
+function ProjectBreakdownStep({ budget, pricingCatalog, updateNested, updateRow, removeRow, updateBudget }) {
+  const specs = budget.productionSpecs || {}
+  const isBallpark = budget.budgetMode === 'Ballpark' || budget.budgetMode === 'Ambos'
+  const isDetailed = budget.budgetMode === 'Detallado' || budget.budgetMode === 'Ambos'
+
+  return (
+    <div className="wizard-stack">
+      <section className="panel">
+        <SectionTitle icon={<Grid3X3 />} eyebrow="Datos de produccion" title="Desglose del proyecto" />
+        <div className="form-grid">
+          <Input label="Duracion del video" value={specs.videoDuration || ''} onChange={(v) => updateNested('productionSpecs', { videoDuration: v })} />
+          <Input label="Cantidad de shots" value={specs.shotCount || ''} onChange={(v) => updateNested('productionSpecs', { shotCount: v })} />
+          <Input label="Formatos / entregables" value={specs.deliveryFormats || ''} onChange={(v) => updateNested('productionSpecs', { deliveryFormats: v })} />
+          <Select label="Complejidad" value={specs.complexity || 'Media'} options={['Baja', 'Media', 'Alta']} onChange={(v) => updateNested('productionSpecs', { complexity: v })} />
+        </div>
+      </section>
+      <TeamSection budget={budget} isAdmin={false} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />
+      {isBallpark && <BallparkSection budget={budget} isAdmin={false} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
+      {isDetailed && <DetailedSection budget={budget} isAdmin={false} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
+    </div>
+  )
+}
+
+function Dashboard({ budgets, currentId, setCurrentId, deleteBudget, duplicateBudget, setSection, onNewBudget, onOpenWizard, isAdmin = true }) {
   const [filters, setFilters] = useState({
     search: '',
     client: 'Todos',
@@ -359,6 +500,16 @@ function Dashboard({ budgets, currentId, setCurrentId, deleteBudget, duplicateBu
   return (
     <section className="panel">
       <SectionTitle icon={<Sparkles />} eyebrow="LocalStorage" title="Presupuestos guardados" />
+      {!isAdmin && (
+        <div className="producer-dashboard-hero">
+          <div>
+            <p className="eyebrow">Nuevo flujo</p>
+            <h2>Arma un presupuesto guiado</h2>
+            <span>Completa cliente, tipo de presupuesto, desglose, resumen y export en cinco pasos.</span>
+          </div>
+          <button className="primary" onClick={onNewBudget}><Plus size={16} /> Nuevo proyecto</button>
+        </div>
+      )}
       <div className="dashboard-controls">
         <Input label="Buscar proyecto / cliente / presupuesto" value={filters.search} onChange={(v) => updateFilter('search', v)} />
         <Select label="Cliente" value={filters.client} options={clients} onChange={(v) => updateFilter('client', v)} />
@@ -416,8 +567,8 @@ function Dashboard({ budgets, currentId, setCurrentId, deleteBudget, duplicateBu
               </div>
               <strong>{money(totals.totalFinal, item.currency)}</strong>
               <div className="row-actions">
-                <button onClick={() => { setCurrentId(item.id); setSection('project') }}>Editar</button>
-                <button onClick={() => duplicateBudget(item)}><Copy size={15} /></button>
+                <button onClick={() => { isAdmin ? (setCurrentId(item.id), setSection('project')) : onOpenWizard?.(item.id) }}>Editar</button>
+                {isAdmin && <button onClick={() => duplicateBudget(item)}><Copy size={15} /></button>}
                 <button onClick={() => deleteBudget(item.id)}><Trash2 size={15} /></button>
               </div>
             </article>
@@ -434,7 +585,7 @@ function Dashboard({ budgets, currentId, setCurrentId, deleteBudget, duplicateBu
   )
 }
 
-function ProjectSection({ budget, updateBudget, updateNested }) {
+function ProjectSection({ budget, updateBudget, updateNested, showBudgetType = true }) {
   return (
     <section className="panel">
       <SectionTitle icon={<FileText />} eyebrow="Base del presupuesto" title="Datos del proyecto" />
@@ -448,7 +599,7 @@ function ProjectSection({ budget, updateBudget, updateNested }) {
         <Input label="Version" value={budget.version} onChange={(v) => updateBudget({ version: v })} />
         <Input label="Responsable" value={budget.owner} onChange={(v) => updateBudget({ owner: v })} />
         <Select label="Moneda" value={budget.currency} options={['USD', 'ARS']} onChange={(v) => updateBudget({ currency: v })} />
-        <Select label="Tipo" value={budget.budgetMode} options={['Ballpark', 'Detallado', 'Ambos']} onChange={(v) => updateBudget({ budgetMode: v })} />
+        {showBudgetType && <Select label="Tipo" value={budget.budgetMode} options={['Ballpark', 'Detallado', 'Ambos']} onChange={(v) => updateBudget({ budgetMode: v })} />}
       </div>
       <div className="two-col">
         <Textarea label="Notas visibles para cliente" value={budget.notes.clientNotes} onChange={(v) => updateNested('notes', { clientNotes: v })} />

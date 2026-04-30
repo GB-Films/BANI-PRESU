@@ -52,6 +52,13 @@ const defaultPricingCatalog = {
   ballpark: ballparkPresets,
   tasks: taskPresets,
 }
+const defaultConsiderations = [
+  { id: 'validity', text: 'Validez de la cotizacion: 15 dias.', included: true },
+  { id: 'scope-review', text: 'Alcance sujeto a revision de materiales finales.', included: true },
+  { id: 'changes', text: 'Cambios fuera del alcance cotizado se presupuestan por separado.', included: false },
+  { id: 'materials', text: 'El cronograma queda sujeto a la entrega de materiales y feedback en tiempo.', included: false },
+  { id: 'taxes', text: 'Impuestos, medios y costos de terceros no incluidos salvo indicacion expresa.', included: false },
+]
 const appUsers = {
   admin: { password: 'admin', role: 'admin', label: 'Administrador' },
   crew: { password: 'crew', role: 'producer', label: 'Crew / Productor' },
@@ -601,10 +608,6 @@ function ProjectSection({ budget, updateBudget, updateNested, showBudgetType = t
         <Select label="Moneda" value={budget.currency} options={['USD', 'ARS']} onChange={(v) => updateBudget({ currency: v })} />
         {showBudgetType && <Select label="Tipo" value={budget.budgetMode} options={['Ballpark', 'Detallado', 'Ambos']} onChange={(v) => updateBudget({ budgetMode: v })} />}
       </div>
-      <div className="two-col">
-        <Textarea label="Notas visibles para cliente" value={budget.notes.clientNotes} onChange={(v) => updateNested('notes', { clientNotes: v })} />
-        <Textarea label="Notas internas" value={budget.notes.internalNotes} onChange={(v) => updateNested('notes', { internalNotes: v })} />
-      </div>
     </section>
   )
 }
@@ -735,6 +738,7 @@ function SummarySection({ budget, totals, updateNested }) {
         <FeePanel budget={budget} updateNested={updateNested} />
         <TotalsPanel budget={budget} totals={totals} />
       </div>
+      <ConsiderationsPanel budget={budget} updateNested={updateNested} />
       <div className="chart-grid">
         <ChartCard title="Por area" data={chartDataFromTotals(areaTotals)} />
         <ChartCard title="Equipo vs tareas" data={modeData} />
@@ -744,11 +748,57 @@ function SummarySection({ budget, totals, updateNested }) {
   )
 }
 
+function ConsiderationsPanel({ budget, updateNested }) {
+  const considerations = budget.notes?.considerations?.length ? budget.notes.considerations : defaultConsiderations
+  const updateConsideration = (id, patch) => {
+    updateNested('notes', {
+      considerations: considerations.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    })
+  }
+  const addConsideration = () => {
+    updateNested('notes', {
+      considerations: [...considerations, { id: crypto.randomUUID(), text: 'Nueva consideracion', included: true }],
+    })
+  }
+  const removeConsideration = (id) => {
+    updateNested('notes', {
+      considerations: considerations.filter((item) => item.id !== id),
+    })
+  }
+
+  return (
+    <div className="considerations-panel">
+      <div className="admin-block-header">
+        <div>
+          <p className="eyebrow">Condiciones / alcance</p>
+          <h3>Consideraciones para sumar</h3>
+        </div>
+        <button className="add-row" onClick={addConsideration}><Plus size={16} /> Agregar</button>
+      </div>
+      <div className="consideration-list">
+        {considerations.map((item) => (
+          <div className="consideration-row" key={item.id}>
+            <Check checked={item.included} onChange={(v) => updateConsideration(item.id, { included: v })} />
+            <CellInput value={item.text} onChange={(v) => updateConsideration(item.id, { text: v })} />
+            <IconButton icon={<Trash2 size={15} />} onClick={() => removeConsideration(item.id)} />
+          </div>
+        ))}
+      </div>
+      <Textarea label="Consideracion adicional libre" value={budget.notes.clientNotes} onChange={(v) => updateNested('notes', { clientNotes: v })} />
+      <Textarea label="Notas internas" value={budget.notes.internalNotes} onChange={(v) => updateNested('notes', { internalNotes: v })} />
+    </div>
+  )
+}
+
 function ExportSection({ budget, totals, updateNested, exportRef, exportImage, exportPdf }) {
   const opts = budget.exportOptions
   const visibleBallpark = budget.ballparkItems.filter((row) => row.included)
   const visibleDetailed = budget.detailedTasks.filter((row) => row.included)
   const visibleTeam = budget.teamMembers.filter((row) => row.included)
+  const visibleConsiderations = [
+    ...(budget.notes?.considerations?.length ? budget.notes.considerations : defaultConsiderations).filter((item) => item.included).map((item) => item.text),
+    budget.notes?.clientNotes,
+  ].filter(Boolean)
 
   return (
     <section className="panel">
@@ -785,7 +835,7 @@ function ExportSection({ budget, totals, updateNested, exportRef, exportImage, e
         {opts.ballpark && totals.isBallpark && <ExportTable title="Presupuesto ballpark" rows={visibleBallpark.map((r) => [r.name, r.description, r.quantity, money(lineSubtotal(r), budget.currency)])} />}
         {opts.detailed && totals.isDetailed && <ExportTable title="Presupuesto detallado" rows={visibleDetailed.map((r) => [r.area, r.taskName, `${r.quantity} ${r.unit}`, money(lineSubtotal(r), budget.currency)])} />}
         {opts.totals && <TotalsPanel budget={budget} totals={totals} exportMode />}
-        {opts.notes && <div className="export-notes"><h3>Notas</h3><p>{budget.notes.clientNotes}</p>{opts.view === 'Interna' && <p>{budget.notes.internalNotes}</p>}</div>}
+        {opts.notes && <div className="export-notes"><h3>Consideraciones</h3>{visibleConsiderations.map((text, index) => <p key={`${text}-${index}`}>{text}</p>)}{opts.view === 'Interna' && <p>{budget.notes.internalNotes}</p>}</div>}
         <footer>© BANI VFX - Postproduccion, VFX & 3D</footer>
       </div>
     </section>

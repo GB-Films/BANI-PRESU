@@ -84,7 +84,14 @@ export const createBudget = () => ({
     textureEnabled: true,
   },
   notes: {
-    clientNotes: 'Validez de la cotizacion: 15 dias. Alcance sujeto a revision de materiales finales.',
+    considerations: [
+      { id: 'validity', text: 'Validez de la cotizacion: 15 dias.', included: true },
+      { id: 'scope-review', text: 'Alcance sujeto a revision de materiales finales.', included: true },
+      { id: 'changes', text: 'Cambios fuera del alcance cotizado se presupuestan por separado.', included: false },
+      { id: 'materials', text: 'El cronograma queda sujeto a la entrega de materiales y feedback en tiempo.', included: false },
+      { id: 'taxes', text: 'Impuestos, medios y costos de terceros no incluidos salvo indicacion expresa.', included: false },
+    ],
+    clientNotes: '',
     internalNotes: '',
   },
   exportOptions: {

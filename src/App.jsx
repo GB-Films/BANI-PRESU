@@ -28,7 +28,7 @@ import {
   money,
   teamSubtotal,
 } from './lib/budget'
-import { loadBudgets, loadCurrentId, saveBudgets, saveCurrentId } from './lib/storage'
+import { loadBudgets, loadCurrentId, loadPricingCatalog, loadUserRole, saveBudgets, saveCurrentId, savePricingCatalog, saveUserRole } from './lib/storage'
 
 const navItems = [
   ['dashboard', 'Dashboard'],
@@ -39,10 +39,16 @@ const navItems = [
   ['summary', 'Resumen'],
   ['export', 'Exportar'],
   ['brand', 'Marca'],
+  ['admin', 'Admin'],
 ]
 
 const chartColors = ['#e61e6e', '#ffffff', '#22c55e', '#71717a', '#a1a1aa', '#f43f5e', '#52525b']
 const assetBase = import.meta.env.BASE_URL
+const defaultPricingCatalog = {
+  roles: rolePresets,
+  ballpark: ballparkPresets,
+  tasks: taskPresets,
+}
 
 function App() {
   const [budgets, setBudgets] = useState(() => {
@@ -51,10 +57,14 @@ function App() {
   })
   const [currentId, setCurrentId] = useState(() => loadCurrentId() || budgets[0]?.id)
   const [section, setSection] = useState('dashboard')
+  const [userRole, setUserRole] = useState(() => loadUserRole())
+  const [pricingCatalog, setPricingCatalog] = useState(() => loadPricingCatalog(defaultPricingCatalog))
   const exportRef = useRef(null)
 
   const budget = budgets.find((item) => item.id === currentId) || budgets[0]
   const totals = useMemo(() => calculateBudget(budget), [budget])
+  const isAdmin = userRole === 'admin'
+  const visibleNavItems = navItems.filter(([id]) => isAdmin || !['brand', 'admin'].includes(id))
 
   useEffect(() => {
     saveBudgets(budgets)
@@ -63,6 +73,15 @@ function App() {
   useEffect(() => {
     if (currentId) saveCurrentId(currentId)
   }, [currentId])
+
+  useEffect(() => {
+    saveUserRole(userRole)
+    if (!isAdmin && ['brand', 'admin'].includes(section)) setSection('dashboard')
+  }, [isAdmin, section, userRole])
+
+  useEffect(() => {
+    savePricingCatalog(pricingCatalog)
+  }, [pricingCatalog])
 
   const updateBudget = (patch) => {
     setBudgets((items) =>
@@ -136,12 +155,13 @@ function App() {
           </div>
         </div>
         <nav>
-          {navItems.map(([id, label]) => (
+          {visibleNavItems.map(([id, label]) => (
             <button key={id} className={section === id ? 'active' : ''} onClick={() => setSection(id)}>
               {label}
             </button>
           ))}
         </nav>
+        <UserRoleSwitch userRole={userRole} setUserRole={setUserRole} />
         <div className="side-total">
           <span>Total final</span>
           <strong>{money(totals.totalFinal, budget.currency)}</strong>
@@ -163,13 +183,26 @@ function App() {
 
         {section === 'dashboard' && <Dashboard budgets={budgets} currentId={currentId} setCurrentId={setCurrentId} deleteBudget={deleteBudget} duplicateBudget={duplicateBudget} setSection={setSection} />}
         {section === 'project' && <ProjectSection budget={budget} updateBudget={updateBudget} updateNested={updateNested} />}
-        {section === 'team' && <TeamSection budget={budget} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
-        {section === 'ballpark' && <BallparkSection budget={budget} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
-        {section === 'detailed' && <DetailedSection budget={budget} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
+        {section === 'team' && <TeamSection budget={budget} isAdmin={isAdmin} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
+        {section === 'ballpark' && <BallparkSection budget={budget} isAdmin={isAdmin} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
+        {section === 'detailed' && <DetailedSection budget={budget} isAdmin={isAdmin} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
         {section === 'summary' && <SummarySection budget={budget} totals={totals} updateNested={updateNested} />}
         {section === 'export' && <ExportSection budget={budget} totals={totals} updateNested={updateNested} exportRef={exportRef} exportImage={exportImage} exportPdf={exportPdf} />}
-        {section === 'brand' && <BrandSection budget={budget} updateNested={updateNested} />}
+        {section === 'brand' && isAdmin && <BrandSection budget={budget} updateNested={updateNested} />}
+        {section === 'admin' && isAdmin && <AdminSection pricingCatalog={pricingCatalog} setPricingCatalog={setPricingCatalog} />}
       </main>
+    </div>
+  )
+}
+
+function UserRoleSwitch({ userRole, setUserRole }) {
+  return (
+    <div className="role-switch">
+      <span>Usuario</span>
+      <div>
+        <button className={userRole === 'producer' ? 'active' : ''} onClick={() => setUserRole('producer')}>Productor</button>
+        <button className={userRole === 'admin' ? 'active' : ''} onClick={() => setUserRole('admin')}>Admin</button>
+      </div>
     </div>
   )
 }
@@ -353,18 +386,31 @@ function ProjectSection({ budget, updateBudget, updateNested }) {
   )
 }
 
-function TeamSection({ budget, updateRow, removeRow, updateBudget }) {
+function TeamSection({ budget, isAdmin, pricingCatalog, updateRow, removeRow, updateBudget }) {
+  const roleOptions = pricingCatalog.roles.map((preset) => preset.role)
   const addPreset = (preset) => updateBudget({ teamMembers: [...budget.teamMembers, createTeamMember(preset)] })
+  const updateRole = (row, role) => {
+    const preset = pricingCatalog.roles.find((item) => item.role === role)
+    updateRow('teamMembers', row.id, {
+      role,
+      area: preset?.area ?? row.area,
+      dayRate: Number(preset?.dayRate ?? row.dayRate),
+    })
+  }
+  const headers = isAdmin
+    ? ['Incl.', 'Nombre', 'Rol', 'Area', 'Valor/dia', 'Dias', 'Subtotal', 'Notas', '']
+    : ['Incl.', 'Nombre', 'Rol', 'Area', 'Dias', 'Subtotal', 'Notas', '']
+
   return (
-    <CrudSection title="Equipo involucrado" eyebrow="Dias / persona" icon={<Grid3X3 />} actions={<PresetButtons presets={rolePresets} getLabel={(p) => p.role} onPick={addPreset} />}>
-      <EditableTable headers={['Incl.', 'Nombre', 'Rol', 'Area', 'Valor/dia', 'Dias', 'Subtotal', 'Notas', '']}>
+    <CrudSection title="Equipo involucrado" eyebrow={isAdmin ? 'Dias / persona / valores' : 'Dias / persona'} icon={<Grid3X3 />} actions={<PresetButtons presets={pricingCatalog.roles} getLabel={(p) => p.role} onPick={addPreset} />}>
+      <EditableTable headers={headers}>
         {budget.teamMembers.map((row) => (
           <tr key={row.id}>
             <td><Check checked={row.included} onChange={(v) => updateRow('teamMembers', row.id, { included: v })} /></td>
             <td><CellInput value={row.name} onChange={(v) => updateRow('teamMembers', row.id, { name: v })} /></td>
-            <td><CellInput value={row.role} onChange={(v) => updateRow('teamMembers', row.id, { role: v })} /></td>
-            <td><CellSelect value={row.area} options={areaOptions} onChange={(v) => updateRow('teamMembers', row.id, { area: v })} /></td>
-            <td><CellInput type="number" value={row.dayRate} onChange={(v) => updateRow('teamMembers', row.id, { dayRate: Number(v) })} /></td>
+            <td><CellSelect value={row.role} options={roleOptions} onChange={(v) => updateRole(row, v)} /></td>
+            <td>{isAdmin ? <CellSelect value={row.area} options={areaOptions} onChange={(v) => updateRow('teamMembers', row.id, { area: v })} /> : <span className="locked-value">{row.area}</span>}</td>
+            {isAdmin && <td><CellInput type="number" value={row.dayRate} onChange={(v) => updateRow('teamMembers', row.id, { dayRate: Number(v) })} /></td>}
             <td><CellInput type="number" value={row.days} onChange={(v) => updateRow('teamMembers', row.id, { days: Number(v) })} /></td>
             <td className="money-cell">{money(teamSubtotal(row), budget.currency)}</td>
             <td><CellInput value={row.notes} onChange={(v) => updateRow('teamMembers', row.id, { notes: v })} /></td>
@@ -377,18 +423,22 @@ function TeamSection({ budget, updateRow, removeRow, updateBudget }) {
   )
 }
 
-function BallparkSection({ budget, updateRow, removeRow, updateBudget }) {
+function BallparkSection({ budget, isAdmin, pricingCatalog, updateRow, removeRow, updateBudget }) {
   const addPreset = (preset) => updateBudget({ ballparkItems: [...budget.ballparkItems, createBallparkItem(preset)] })
+  const headers = isAdmin
+    ? ['Incl.', 'Partida', 'Descripcion', 'Cant.', 'Unitario', 'Subtotal', 'Notas', '']
+    : ['Incl.', 'Partida', 'Descripcion', 'Cant.', 'Subtotal', 'Notas', '']
+
   return (
-    <CrudSection title="Presupuesto Ballpark" eyebrow="Estimacion rapida" icon={<Sparkles />} actions={<PresetButtons presets={ballparkPresets} getLabel={(p) => p.name} onPick={addPreset} />}>
-      <EditableTable headers={['Incl.', 'Partida', 'Descripcion', 'Cant.', 'Unitario', 'Subtotal', 'Notas', '']}>
+    <CrudSection title="Presupuesto Ballpark" eyebrow={isAdmin ? 'Estimacion rapida / valores' : 'Estimacion rapida'} icon={<Sparkles />} actions={<PresetButtons presets={pricingCatalog.ballpark} getLabel={(p) => p.name} onPick={addPreset} />}>
+      <EditableTable headers={headers}>
         {budget.ballparkItems.map((row) => (
           <tr key={row.id}>
             <td><Check checked={row.included} onChange={(v) => updateRow('ballparkItems', row.id, { included: v })} /></td>
             <td><CellInput value={row.name} onChange={(v) => updateRow('ballparkItems', row.id, { name: v })} /></td>
             <td><CellInput value={row.description} onChange={(v) => updateRow('ballparkItems', row.id, { description: v })} /></td>
             <td><CellInput type="number" value={row.quantity} onChange={(v) => updateRow('ballparkItems', row.id, { quantity: Number(v) })} /></td>
-            <td><CellInput type="number" value={row.unitValue} onChange={(v) => updateRow('ballparkItems', row.id, { unitValue: Number(v) })} /></td>
+            {isAdmin && <td><CellInput type="number" value={row.unitValue} onChange={(v) => updateRow('ballparkItems', row.id, { unitValue: Number(v) })} /></td>}
             <td className="money-cell">{money(lineSubtotal(row), budget.currency)}</td>
             <td><CellInput value={row.notes} onChange={(v) => updateRow('ballparkItems', row.id, { notes: v })} /></td>
             <td><IconButton onClick={() => removeRow('ballparkItems', row.id)} icon={<Trash2 size={15} />} /></td>
@@ -400,21 +450,37 @@ function BallparkSection({ budget, updateRow, removeRow, updateBudget }) {
   )
 }
 
-function DetailedSection({ budget, updateRow, removeRow, updateBudget }) {
+function DetailedSection({ budget, isAdmin, pricingCatalog, updateRow, removeRow, updateBudget }) {
   const addPreset = (preset) => updateBudget({ detailedTasks: [...budget.detailedTasks, createDetailedTask(preset)] })
+  const taskOptions = pricingCatalog.tasks.map((preset) => `${preset.area}: ${preset.taskName}`)
+  const updateTaskPreset = (row, label) => {
+    const preset = pricingCatalog.tasks.find((item) => `${item.area}: ${item.taskName}` === label)
+    if (!preset) return
+    updateRow('detailedTasks', row.id, {
+      area: preset.area,
+      taskName: preset.taskName,
+      description: preset.description,
+      unit: preset.unit,
+      unitValue: Number(preset.unitValue),
+    })
+  }
+  const headers = isAdmin
+    ? ['Incl.', 'Area', 'Tarea', 'Descripcion', 'Resp.', 'Cant.', 'Unidad', 'Unitario', 'Estado', 'Subtotal', 'Notas', '']
+    : ['Incl.', 'Tarea', 'Descripcion', 'Resp.', 'Cant.', 'Unidad', 'Estado', 'Subtotal', 'Notas', '']
+
   return (
-    <CrudSection title="Presupuesto Detallado" eyebrow="Tareas por area" icon={<BarChart3 />} actions={<PresetButtons presets={taskPresets} getLabel={(p) => `${p.area}: ${p.taskName}`} onPick={addPreset} />}>
-      <EditableTable headers={['Incl.', 'Area', 'Tarea', 'Descripcion', 'Resp.', 'Cant.', 'Unidad', 'Unitario', 'Estado', 'Subtotal', 'Notas', '']}>
+    <CrudSection title="Presupuesto Detallado" eyebrow={isAdmin ? 'Tareas por area / valores' : 'Tareas por area'} icon={<BarChart3 />} actions={<PresetButtons presets={pricingCatalog.tasks} getLabel={(p) => `${p.area}: ${p.taskName}`} onPick={addPreset} />}>
+      <EditableTable headers={headers}>
         {budget.detailedTasks.map((row) => (
           <tr key={row.id}>
             <td><Check checked={row.included} onChange={(v) => updateRow('detailedTasks', row.id, { included: v })} /></td>
-            <td><CellInput value={row.area} onChange={(v) => updateRow('detailedTasks', row.id, { area: v })} /></td>
-            <td><CellInput value={row.taskName} onChange={(v) => updateRow('detailedTasks', row.id, { taskName: v })} /></td>
+            {isAdmin && <td><CellInput value={row.area} onChange={(v) => updateRow('detailedTasks', row.id, { area: v })} /></td>}
+            <td>{isAdmin ? <CellInput value={row.taskName} onChange={(v) => updateRow('detailedTasks', row.id, { taskName: v })} /> : <CellSelect value={`${row.area}: ${row.taskName}`} options={taskOptions} onChange={(v) => updateTaskPreset(row, v)} />}</td>
             <td><CellInput value={row.description} onChange={(v) => updateRow('detailedTasks', row.id, { description: v })} /></td>
             <td><CellInput value={row.assignee} onChange={(v) => updateRow('detailedTasks', row.id, { assignee: v })} /></td>
             <td><CellInput type="number" value={row.quantity} onChange={(v) => updateRow('detailedTasks', row.id, { quantity: Number(v) })} /></td>
-            <td><CellSelect value={row.unit} options={unitOptions} onChange={(v) => updateRow('detailedTasks', row.id, { unit: v })} /></td>
-            <td><CellInput type="number" value={row.unitValue} onChange={(v) => updateRow('detailedTasks', row.id, { unitValue: Number(v) })} /></td>
+            <td>{isAdmin ? <CellSelect value={row.unit} options={unitOptions} onChange={(v) => updateRow('detailedTasks', row.id, { unit: v })} /> : <span className="locked-value">{row.unit}</span>}</td>
+            {isAdmin && <td><CellInput type="number" value={row.unitValue} onChange={(v) => updateRow('detailedTasks', row.id, { unitValue: Number(v) })} /></td>}
             <td><CellSelect value={row.status} options={statusOptions} onChange={(v) => updateRow('detailedTasks', row.id, { status: v })} /></td>
             <td className="money-cell">{money(lineSubtotal(row), budget.currency)}</td>
             <td><CellInput value={row.notes} onChange={(v) => updateRow('detailedTasks', row.id, { notes: v })} /></td>
@@ -531,6 +597,110 @@ function BrandSection({ budget, updateNested }) {
       </div>
       {budget.brandSettings.referenceImage && <img className="reference-preview" src={budget.brandSettings.referenceImage} alt="Referencia visual" />}
     </section>
+  )
+}
+
+function AdminSection({ pricingCatalog, setPricingCatalog }) {
+  const updateCatalogRow = (collection, index, patch) => {
+    setPricingCatalog((catalog) => ({
+      ...catalog,
+      [collection]: catalog[collection].map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)),
+    }))
+  }
+
+  const addCatalogRow = (collection, row) => {
+    setPricingCatalog((catalog) => ({
+      ...catalog,
+      [collection]: [...catalog[collection], row],
+    }))
+  }
+
+  const removeCatalogRow = (collection, index) => {
+    setPricingCatalog((catalog) => ({
+      ...catalog,
+      [collection]: catalog[collection].filter((_, itemIndex) => itemIndex !== index),
+    }))
+  }
+
+  const resetCatalog = () => setPricingCatalog(defaultPricingCatalog)
+
+  return (
+    <section className="panel admin-panel">
+      <SectionTitle icon={<Settings />} eyebrow="Solo administrador" title="Base de costos" />
+      <div className="admin-note">
+        <strong>Modo Admin activo</strong>
+        <span>Estos valores alimentan los presets que usa Productor para armar presupuestos sin editar costos individuales.</span>
+      </div>
+
+      <AdminCatalogBlock
+        title="Valores de equipo"
+        actionLabel="Agregar rol"
+        headers={['Rol', 'Area', 'Valor/dia', '']}
+        onAdd={() => addCatalogRow('roles', { role: 'Nuevo rol', area: 'VFX', dayRate: 0 })}
+      >
+        {pricingCatalog.roles.map((row, index) => (
+          <tr key={`${row.role}-${index}`}>
+            <td><CellInput value={row.role} onChange={(v) => updateCatalogRow('roles', index, { role: v })} /></td>
+            <td><CellSelect value={row.area} options={areaOptions} onChange={(v) => updateCatalogRow('roles', index, { area: v })} /></td>
+            <td><CellInput type="number" value={row.dayRate} onChange={(v) => updateCatalogRow('roles', index, { dayRate: Number(v) })} /></td>
+            <td><IconButton onClick={() => removeCatalogRow('roles', index)} icon={<Trash2 size={15} />} /></td>
+          </tr>
+        ))}
+      </AdminCatalogBlock>
+
+      <AdminCatalogBlock
+        title="Presets Ballpark"
+        actionLabel="Agregar partida"
+        headers={['Partida', 'Descripcion', 'Cantidad', 'Unitario', '']}
+        onAdd={() => addCatalogRow('ballpark', { name: 'Nueva partida', description: '', quantity: 1, unitValue: 0 })}
+      >
+        {pricingCatalog.ballpark.map((row, index) => (
+          <tr key={`${row.name}-${index}`}>
+            <td><CellInput value={row.name} onChange={(v) => updateCatalogRow('ballpark', index, { name: v })} /></td>
+            <td><CellInput value={row.description} onChange={(v) => updateCatalogRow('ballpark', index, { description: v })} /></td>
+            <td><CellInput type="number" value={row.quantity} onChange={(v) => updateCatalogRow('ballpark', index, { quantity: Number(v) })} /></td>
+            <td><CellInput type="number" value={row.unitValue} onChange={(v) => updateCatalogRow('ballpark', index, { unitValue: Number(v) })} /></td>
+            <td><IconButton onClick={() => removeCatalogRow('ballpark', index)} icon={<Trash2 size={15} />} /></td>
+          </tr>
+        ))}
+      </AdminCatalogBlock>
+
+      <AdminCatalogBlock
+        title="Presets Detallados"
+        actionLabel="Agregar tarea"
+        headers={['Area', 'Tarea', 'Descripcion', 'Unidad', 'Unitario', '']}
+        onAdd={() => addCatalogRow('tasks', { area: 'VFX', taskName: 'Nueva tarea', description: '', unit: 'Dia', unitValue: 0 })}
+      >
+        {pricingCatalog.tasks.map((row, index) => (
+          <tr key={`${row.area}-${row.taskName}-${index}`}>
+            <td><CellInput value={row.area} onChange={(v) => updateCatalogRow('tasks', index, { area: v })} /></td>
+            <td><CellInput value={row.taskName} onChange={(v) => updateCatalogRow('tasks', index, { taskName: v })} /></td>
+            <td><CellInput value={row.description} onChange={(v) => updateCatalogRow('tasks', index, { description: v })} /></td>
+            <td><CellSelect value={row.unit} options={unitOptions} onChange={(v) => updateCatalogRow('tasks', index, { unit: v })} /></td>
+            <td><CellInput type="number" value={row.unitValue} onChange={(v) => updateCatalogRow('tasks', index, { unitValue: Number(v) })} /></td>
+            <td><IconButton onClick={() => removeCatalogRow('tasks', index)} icon={<Trash2 size={15} />} /></td>
+          </tr>
+        ))}
+      </AdminCatalogBlock>
+
+      <div className="admin-actions">
+        <button className="ghost" onClick={resetCatalog}>Restaurar valores base</button>
+      </div>
+    </section>
+  )
+}
+
+function AdminCatalogBlock({ title, actionLabel, headers, onAdd, children }) {
+  return (
+    <div className="admin-block">
+      <div className="admin-block-header">
+        <h3>{title}</h3>
+        <button className="add-row" onClick={onAdd}><Plus size={16} /> {actionLabel}</button>
+      </div>
+      <div className="table-wrap">
+        <EditableTable headers={headers}>{children}</EditableTable>
+      </div>
+    </div>
   )
 }
 

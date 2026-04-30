@@ -43,6 +43,7 @@ export const createBudget = () => ({
   id: uid(),
   projectName: 'Nuevo presupuesto BANI VFX',
   client: '',
+  finalClient: '',
   agency: '',
   productionCompany: '',
   date: new Date().toISOString().slice(0, 10),
@@ -52,6 +53,7 @@ export const createBudget = () => ({
   currency: 'USD',
   budgetMode: 'Ambos',
   productionSpecs: {
+    flowType: '',
     commercialTitle: '',
     development: '',
     includedWorks: [

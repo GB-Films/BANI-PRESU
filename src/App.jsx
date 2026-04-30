@@ -52,18 +52,24 @@ const defaultPricingCatalog = {
   roles: rolePresets,
   ballpark: ballparkPresets,
   ballparkDayRates: [
+    { key: 'gestion', name: 'Gestion de proyecto', description: 'Jornadas de gestion, coordinacion y seguimiento', unitValue: 420 },
     { key: 'montaje', name: 'Montaje', description: 'Jornadas de montaje / edicion', unitValue: 380 },
-    { key: 'color', name: 'Color', description: 'Jornadas de color', unitValue: 520 },
     { key: 'sonido', name: 'Sonido', description: 'Jornadas de sonido', unitValue: 360 },
+    { key: 'color', name: 'Color', description: 'Jornadas de color', unitValue: 520 },
     { key: 'vfx', name: 'VFX', description: 'Jornadas de VFX', unitValue: 440 },
     { key: '3d', name: '3D', description: 'Jornadas de 3D', unitValue: 430 },
   ],
   tasks: taskPresets,
 }
+const mergeDayRates = (rates = []) => {
+  const saved = rates.length ? rates : defaultPricingCatalog.ballparkDayRates
+  const byKey = new Map(saved.map((rate) => [rate.key, rate]))
+  return defaultPricingCatalog.ballparkDayRates.map((rate) => ({ ...rate, ...(byKey.get(rate.key) || {}) }))
+}
 const mergePricingCatalog = (catalog) => ({
   ...defaultPricingCatalog,
   ...(catalog || {}),
-  ballparkDayRates: catalog?.ballparkDayRates?.length ? catalog.ballparkDayRates : defaultPricingCatalog.ballparkDayRates,
+  ballparkDayRates: mergeDayRates(catalog?.ballparkDayRates),
 })
 const defaultConsiderations = [
   { id: 'validity', text: 'Validez de la cotizacion: 15 dias.', included: true },
@@ -88,6 +94,59 @@ const defaultIncludedWorks = [
   { id: 'renders-3d', text: 'Renders 3D', included: false },
   { id: 'sonido', text: 'Diseno de sonido', included: false },
   { id: 'color', text: 'Color', included: false },
+]
+const ballparkConsiderations = [
+  {
+    id: 'ballpark-not-final',
+    text: 'Este presupuesto es orientativo. Una vez confirmado el proyecto, se entregara una propuesta integral con el detalle de los trabajos a realizar. Por lo tanto, el presupuesto final puede modificarse.',
+    included: true,
+  },
+  { id: 'ballpark-scope', text: 'El alcance queda sujeto a revision de materiales finales, cronograma y entregables confirmados.', included: true },
+  { id: 'ballpark-validity', text: 'Propuesta valida por 15 dias corridos desde la entrega.', included: true },
+]
+const budgetPresetModels = [
+  {
+    id: 'digital-vfx-pack',
+    name: 'Contenido digital + VFX',
+    description: 'Base para pieza hero con adaptaciones, composicion, color y sonido.',
+    budgetMode: 'Ballpark',
+    specs: {
+      commercialTitle: 'Contenido digital',
+      pieceSummary: '1 pieza hero con adaptaciones 16:9, 9:16 y 1:1',
+      development: 'Postproduccion integral de contenido digital con armado de entregables, composicion VFX, color y sonido.',
+      deliveryFormats: '16:9, 9:16, 1:1',
+      includedWorks: defaultIncludedWorks.map((item) => ({ ...item, included: ['composicion', 'sonido', 'color'].includes(item.id) })),
+    },
+    days: { gestion: 2, montaje: 3, sonido: 1, color: 1, vfx: 5, '3d': 0 },
+  },
+  {
+    id: 'hero-3d-pack',
+    name: 'Hero 3D + compositing',
+    description: 'Para videos con asset 3D compartido entre varios shots.',
+    budgetMode: 'Ballpark',
+    specs: {
+      commercialTitle: 'Hero 3D',
+      pieceSummary: 'Video hero con asset 3D y reducciones',
+      development: 'Desarrollo de asset 3D, integracion en shots seleccionados, composicion final, color y sonido.',
+      deliveryFormats: 'Hero + reducciones 6s, 15s y 30s',
+      includedWorks: defaultIncludedWorks.map((item) => ({ ...item, included: ['modelado-3d', 'trackeo-3d', 'composicion', 'renders-3d', 'sonido', 'color'].includes(item.id) })),
+    },
+    days: { gestion: 3, montaje: 3, sonido: 1, color: 1, vfx: 6, '3d': 8 },
+  },
+  {
+    id: 'post-basic-pack',
+    name: 'Post integral simple',
+    description: 'Montaje, color, sonido y delivery sin VFX complejo.',
+    budgetMode: 'Ballpark',
+    specs: {
+      commercialTitle: 'Postproduccion integral',
+      pieceSummary: 'Pieza principal con master y adaptaciones',
+      development: 'Proceso de montaje, terminacion, color, sonido y preparacion de masters finales.',
+      deliveryFormats: 'Master 16:9 + versiones sociales',
+      includedWorks: defaultIncludedWorks.map((item) => ({ ...item, included: ['sonido', 'color'].includes(item.id) })),
+    },
+    days: { gestion: 1, montaje: 4, sonido: 1, color: 1, vfx: 0, '3d': 0 },
+  },
 ]
 const appUsers = {
   admin: { password: 'admin', role: 'admin', label: 'Administrador' },
@@ -259,6 +318,7 @@ function App() {
             </button>
           ))}
         </nav>
+        {!isAdmin && wizardActive && <WizardStepNav wizardStep={wizardStep} setWizardStep={setWizardStep} />}
         <div className="side-total">
           <span>Total final</span>
           <strong>{money(totals.totalFinal, budget.currency)}</strong>
@@ -302,11 +362,27 @@ function App() {
         {isAdmin && section === 'team' && <TeamSection budget={budget} isAdmin={isAdmin} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
         {isAdmin && section === 'ballpark' && <BallparkSection budget={budget} isAdmin={isAdmin} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
         {isAdmin && section === 'detailed' && <DetailedSection budget={budget} isAdmin={isAdmin} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
-        {isAdmin && section === 'summary' && <SummarySection budget={budget} totals={totals} updateNested={updateNested} />}
+        {isAdmin && section === 'summary' && <SummarySection budget={budget} totals={totals} updateNested={updateNested} isAdmin />}
         {isAdmin && section === 'export' && <ExportSection budget={budget} totals={totals} updateNested={updateNested} exportRef={exportRef} exportImage={exportImage} exportPdf={exportPdf} />}
         {isAdmin && section === 'brand' && <BrandSection budget={budget} updateNested={updateNested} />}
         {isAdmin && section === 'admin' && <AdminSection pricingCatalog={pricingCatalog} setPricingCatalog={setPricingCatalog} />}
       </main>
+    </div>
+  )
+}
+
+function WizardStepNav({ wizardStep, setWizardStep }) {
+  return (
+    <div className="sidebar-wizard">
+      <p className="eyebrow">Etapas presupuesto</p>
+      <div className="sidebar-wizard-steps">
+        {wizardSteps.map((label, index) => (
+          <button key={label} className={index === wizardStep ? 'active' : index < wizardStep ? 'done' : ''} onClick={() => setWizardStep(index)}>
+            <span>{index + 1}</span>
+            {label}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -405,19 +481,10 @@ function ProducerWizard({ budget, totals, wizardStep, setWizardStep, setWizardAc
         <button className="ghost" onClick={() => setWizardActive(false)}>Volver al dashboard</button>
       </div>
 
-      <div className="wizard-steps">
-        {wizardSteps.map((label, index) => (
-          <button key={label} className={index === wizardStep ? 'active' : index < wizardStep ? 'done' : ''} onClick={() => setWizardStep(index)}>
-            <span>{index + 1}</span>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {wizardStep === 0 && <ProjectSection budget={budget} updateBudget={updateBudget} updateNested={updateNested} showBudgetType={false} />}
+      {wizardStep === 0 && <ProjectSection budget={budget} updateBudget={updateBudget} updateNested={updateNested} showBudgetType={false} producerMode />}
       {wizardStep === 1 && <BudgetTypeStep budget={budget} pricingCatalog={pricingCatalog} updateBudget={updateBudget} />}
       {wizardStep === 2 && <ProjectBreakdownStep budget={budget} pricingCatalog={pricingCatalog} updateNested={updateNested} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
-      {wizardStep === 3 && <SummarySection budget={budget} totals={totals} updateNested={updateNested} />}
+      {wizardStep === 3 && <SummarySection budget={budget} totals={totals} updateNested={updateNested} isAdmin={false} />}
       {wizardStep === 4 && <ExportSection budget={budget} totals={totals} updateNested={updateNested} exportRef={exportRef} exportImage={exportImage} exportPdf={exportPdf} />}
 
       <div className="wizard-footer">
@@ -433,24 +500,19 @@ function ProducerWizard({ budget, totals, wizardStep, setWizardStep, setWizardAc
 }
 
 function BudgetTypeStep({ budget, pricingCatalog, updateBudget }) {
-  const pickPreset = () => updateBudget({
-    budgetMode: 'Ballpark',
-    ballparkItems: pricingCatalog.ballpark.slice(0, 3).map(createBallparkItem),
-  })
-
   return (
     <section className="panel">
       <SectionTitle icon={<Sparkles />} eyebrow="Tipo de presupuesto" title="Elegi como queres armarlo" />
       <div className="type-choice-grid">
-        <button className={budget.budgetMode === 'Detallado' ? 'selected' : ''} onClick={() => updateBudget({ budgetMode: 'Detallado' })}>
+        <button className={budget.budgetMode === 'Detallado' ? 'selected' : ''} onClick={() => updateBudget({ budgetMode: 'Detallado', productionSpecs: { ...budget.productionSpecs, flowType: '' } })}>
           <strong>Detallado</strong>
           <span>Para desglosar tareas, planos, responsables y cantidades.</span>
         </button>
-        <button className={budget.budgetMode === 'Ballpark' ? 'selected' : ''} onClick={() => updateBudget({ budgetMode: 'Ballpark' })}>
+        <button className={budget.budgetMode === 'Ballpark' && budget.productionSpecs?.flowType !== 'preset' ? 'selected' : ''} onClick={() => updateBudget({ budgetMode: 'Ballpark', productionSpecs: { ...budget.productionSpecs, flowType: '' } })}>
           <strong>Ballpark</strong>
           <span>Para una estimacion rapida con partidas grandes.</span>
         </button>
-        <button onClick={pickPreset}>
+        <button className={budget.productionSpecs?.flowType === 'preset' ? 'selected' : ''} onClick={() => updateBudget({ budgetMode: 'Ballpark', productionSpecs: { ...budget.productionSpecs, flowType: 'preset' } })}>
           <strong>Preset definido</strong>
           <span>Arranca desde partidas precargadas por Admin y ajusta cantidades.</span>
         </button>
@@ -464,6 +526,18 @@ function ProjectBreakdownStep({ budget, pricingCatalog, updateNested, updateRow,
   const isBallpark = budget.budgetMode === 'Ballpark' || budget.budgetMode === 'Ambos'
   const isDetailed = budget.budgetMode === 'Detallado' || budget.budgetMode === 'Ambos'
 
+  if (specs.flowType === 'preset') {
+    return <PresetModelStep budget={budget} pricingCatalog={pricingCatalog} updateBudget={updateBudget} />
+  }
+
+  if (isBallpark) {
+    return (
+      <div className="wizard-stack">
+        <BallparkSection budget={budget} isAdmin={false} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />
+      </div>
+    )
+  }
+
   return (
     <div className="wizard-stack">
       <section className="panel">
@@ -475,11 +549,54 @@ function ProjectBreakdownStep({ budget, pricingCatalog, updateNested, updateRow,
           <Select label="Complejidad" value={specs.complexity || 'Media'} options={['Baja', 'Media', 'Alta']} onChange={(v) => updateNested('productionSpecs', { complexity: v })} />
         </div>
       </section>
-      {isBallpark && <BallparkProposalStep budget={budget} updateNested={updateNested} />}
-      <TeamSection budget={budget} isAdmin={false} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />
-      {isBallpark && <BallparkSection budget={budget} isAdmin={false} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
       {isDetailed && <DetailedSection budget={budget} isAdmin={false} pricingCatalog={pricingCatalog} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
     </div>
+  )
+}
+
+function PresetModelStep({ budget, pricingCatalog, updateBudget }) {
+  const dayRates = pricingCatalog.ballparkDayRates?.length ? pricingCatalog.ballparkDayRates : defaultPricingCatalog.ballparkDayRates
+  const applyPreset = (preset) => {
+    const dayItems = dayRates
+      .map((rate) => {
+        const quantity = Number(preset.days?.[rate.key] || 0)
+        if (!quantity) return null
+        return createBallparkItem({
+          name: `Jornadas ${rate.name}`,
+          description: rate.description,
+          quantity,
+          unitValue: Number(rate.unitValue || 0),
+          sourceType: 'ballparkDayRate',
+          sourceKey: rate.key,
+        })
+      })
+      .filter(Boolean)
+
+    updateBudget({
+      budgetMode: preset.budgetMode,
+      productionSpecs: {
+        ...budget.productionSpecs,
+        ...preset.specs,
+        flowType: '',
+        presetName: preset.name,
+      },
+      ballparkItems: dayItems,
+    })
+  }
+
+  return (
+    <section className="panel">
+      <SectionTitle icon={<Sparkles />} eyebrow="Modelos prearmados" title="Elegir presupuesto base" />
+      <div className="preset-model-grid">
+        {budgetPresetModels.map((preset) => (
+          <button key={preset.id} className={budget.productionSpecs?.presetName === preset.name ? 'selected' : ''} onClick={() => applyPreset(preset)}>
+            <strong>{preset.name}</strong>
+            <span>{preset.description}</span>
+            <small>Copiar modelo</small>
+          </button>
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -695,19 +812,20 @@ function Dashboard({ budgets, currentId, setCurrentId, deleteBudget, duplicateBu
   )
 }
 
-function ProjectSection({ budget, updateBudget, updateNested, showBudgetType = true }) {
+function ProjectSection({ budget, updateBudget, updateNested, showBudgetType = true, producerMode = false }) {
   return (
     <section className="panel">
       <SectionTitle icon={<FileText />} eyebrow="Base del presupuesto" title="Datos del proyecto" />
       <div className="form-grid">
         <Input label="Nombre del proyecto" value={budget.projectName} onChange={(v) => updateBudget({ projectName: v })} />
         <Input label="Cliente" value={budget.client} onChange={(v) => updateBudget({ client: v })} />
-        <Input label="Productora / agencia" value={budget.agency} onChange={(v) => updateBudget({ agency: v })} />
-        <Input label="Productora" value={budget.productionCompany} onChange={(v) => updateBudget({ productionCompany: v })} />
+        <Input label="Cliente final" value={budget.finalClient || ''} onChange={(v) => updateBudget({ finalClient: v })} />
+        {!producerMode && <Input label="Productora / agencia" value={budget.agency} onChange={(v) => updateBudget({ agency: v })} />}
+        {!producerMode && <Input label="Productora" value={budget.productionCompany} onChange={(v) => updateBudget({ productionCompany: v })} />}
         <Input type="date" label="Fecha" value={budget.date} onChange={(v) => updateBudget({ date: v })} />
         <Input label="Numero de presupuesto" value={budget.budgetNumber} onChange={(v) => updateBudget({ budgetNumber: v })} />
         <Input label="Version" value={budget.version} onChange={(v) => updateBudget({ version: v })} />
-        <Input label="Responsable" value={budget.owner} onChange={(v) => updateBudget({ owner: v })} />
+        {!producerMode && <Input label="Responsable" value={budget.owner} onChange={(v) => updateBudget({ owner: v })} />}
         <Select label="Moneda" value={budget.currency} options={['USD', 'ARS']} onChange={(v) => updateBudget({ currency: v })} />
         {showBudgetType && <Select label="Tipo" value={budget.budgetMode} options={['Ballpark', 'Detallado', 'Ambos']} onChange={(v) => updateBudget({ budgetMode: v })} />}
       </div>
@@ -781,26 +899,39 @@ function BallparkSection({ budget, isAdmin, pricingCatalog, updateRow, removeRow
     ? ['Incl.', 'Partida', 'Descripcion', 'Cant.', 'Unitario', 'Subtotal', 'Notas', '']
     : ['Incl.', 'Partida', 'Descripcion', 'Cant.', 'Subtotal', 'Notas', '']
 
+  const daysPanel = (
+    <div className="ballpark-days-panel">
+      <div>
+        <p className="eyebrow">Jornadas por departamento</p>
+        <h3>Produccion rapida</h3>
+      </div>
+      <div className="ballpark-days-grid">
+        {dayRates.map((rate) => {
+          const item = budget.ballparkItems.find((row) => row.sourceType === 'ballparkDayRate' && row.sourceKey === rate.key)
+          return (
+            <label className="field" key={rate.key}>
+              <span>{rate.name}</span>
+              <input type="number" min="0" value={item?.quantity || ''} onChange={(event) => updateDayRateItem(rate, event.target.value)} placeholder="Jornadas" />
+              {isAdmin && <small>{money(rate.unitValue, budget.currency)} / jornada</small>}
+            </label>
+          )
+        })}
+      </div>
+    </div>
+  )
+
+  if (!isAdmin) {
+    return (
+      <section className="panel">
+        <SectionTitle icon={<Sparkles />} eyebrow="Ballpark" title="Jornadas estimadas" />
+        {daysPanel}
+      </section>
+    )
+  }
+
   return (
     <CrudSection title="Presupuesto Ballpark" eyebrow={isAdmin ? 'Estimacion rapida / valores' : 'Estimacion rapida'} icon={<Sparkles />} actions={<PresetButtons presets={pricingCatalog.ballpark} getLabel={(p) => p.name} onPick={addPreset} />}>
-      <div className="ballpark-days-panel">
-        <div>
-          <p className="eyebrow">Jornadas por departamento</p>
-          <h3>Produccion rapida</h3>
-        </div>
-        <div className="ballpark-days-grid">
-          {dayRates.map((rate) => {
-            const item = budget.ballparkItems.find((row) => row.sourceType === 'ballparkDayRate' && row.sourceKey === rate.key)
-            return (
-              <label className="field" key={rate.key}>
-                <span>{rate.name}</span>
-                <input type="number" min="0" value={item?.quantity || ''} onChange={(event) => updateDayRateItem(rate, event.target.value)} placeholder="Jornadas" />
-                {isAdmin && <small>{money(rate.unitValue, budget.currency)} / jornada</small>}
-              </label>
-            )
-          })}
-        </div>
-      </div>
+      {daysPanel}
       <EditableTable headers={headers}>
         {budget.ballparkItems.map((row) => (
           <tr key={row.id}>
@@ -837,15 +968,47 @@ function DetailedSection({ budget, isAdmin, pricingCatalog, updateRow, removeRow
   const headers = isAdmin
     ? ['Incl.', 'Area', 'Tarea', 'Descripcion', 'Resp.', 'Cant.', 'Unidad', 'Unitario', 'Estado', 'Subtotal', 'Notas', '']
     : ['Incl.', 'Tarea', 'Descripcion', 'Resp.', 'Cant.', 'Unidad', 'Estado', 'Subtotal', 'Notas', '']
+  const addProducerLine = (area, taskName, description, unit = 'Dia') => {
+    const preset = pricingCatalog.tasks.find((item) => item.area === area) || {}
+    updateBudget({
+      detailedTasks: [
+        ...budget.detailedTasks,
+        createDetailedTask({
+          ...preset,
+          area,
+          taskName,
+          description,
+          unit,
+          quantity: 1,
+        }),
+      ],
+    })
+  }
 
   return (
-    <CrudSection title="Presupuesto Detallado" eyebrow={isAdmin ? 'Tareas por area / valores' : 'Tareas por area'} icon={<BarChart3 />} actions={<PresetButtons presets={pricingCatalog.tasks} getLabel={(p) => `${p.area}: ${p.taskName}`} onPick={addPreset} />}>
+    <CrudSection title="Presupuesto Detallado" eyebrow={isAdmin ? 'Tareas por area / valores' : 'Por shot, entregable o asset'} icon={<BarChart3 />} actions={isAdmin ? <PresetButtons presets={pricingCatalog.tasks} getLabel={(p) => `${p.area}: ${p.taskName}`} onPick={addPreset} /> : null}>
+      {!isAdmin && (
+        <div className="detailed-planner">
+          <button onClick={() => addProducerLine('Postproduccion', 'Montaje / color / sonido', 'Describir piezas, reducciones, relaciones de aspecto, masters y necesidades de sonido/color.')}>
+            <strong>Montaje, color y sonido</strong>
+            <span>Para piezas hero, adaptaciones, reducciones y masters finales.</span>
+          </button>
+          <button onClick={() => addProducerLine('VFX', 'Shot / tarea VFX', 'Describir shot, plano, invisible VFX, tracking, roto, cleanup, keying o compositing.', 'Plano')}>
+            <strong>VFX</strong>
+            <span>Para cargar por shot, tarea o bloque de planos.</span>
+          </button>
+          <button onClick={() => addProducerLine('3D', 'Asset / tarea 3D', 'Describir asset, modelado, lookdev, rig, animacion, render o integracion 3D.')}>
+            <strong>3D</strong>
+            <span>Para assets reutilizables o tareas que atraviesan varios shots.</span>
+          </button>
+        </div>
+      )}
       <EditableTable headers={headers}>
         {budget.detailedTasks.map((row) => (
           <tr key={row.id}>
             <td><Check checked={row.included} onChange={(v) => updateRow('detailedTasks', row.id, { included: v })} /></td>
             {isAdmin && <td><CellInput value={row.area} onChange={(v) => updateRow('detailedTasks', row.id, { area: v })} /></td>}
-            <td>{isAdmin ? <CellInput value={row.taskName} onChange={(v) => updateRow('detailedTasks', row.id, { taskName: v })} /> : <CellSelect value={`${row.area}: ${row.taskName}`} options={taskOptions} onChange={(v) => updateTaskPreset(row, v)} />}</td>
+            <td><CellInput value={row.taskName} onChange={(v) => updateRow('detailedTasks', row.id, { taskName: v })} /></td>
             <td><CellInput value={row.description} onChange={(v) => updateRow('detailedTasks', row.id, { description: v })} /></td>
             <td><CellInput value={row.assignee} onChange={(v) => updateRow('detailedTasks', row.id, { assignee: v })} /></td>
             <td><CellInput type="number" value={row.quantity} onChange={(v) => updateRow('detailedTasks', row.id, { quantity: Number(v) })} /></td>
@@ -863,7 +1026,7 @@ function DetailedSection({ budget, isAdmin, pricingCatalog, updateRow, removeRow
   )
 }
 
-function SummarySection({ budget, totals, updateNested }) {
+function SummarySection({ budget, totals, updateNested, isAdmin = false }) {
   const areaTotals = {
     ...groupTotals(budget, budget.teamMembers, 'area', teamSubtotal),
     ...groupTotals(budget, budget.detailedTasks, 'area', lineSubtotal),
@@ -874,26 +1037,55 @@ function SummarySection({ budget, totals, updateNested }) {
     { name: 'Ballpark', value: totals.subtotalBallpark },
     { name: 'Detallado', value: totals.subtotalDetailed },
   ].filter((item) => item.value > 0)
+  const isBallparkOnly = budget.budgetMode === 'Ballpark'
 
   return (
     <section className="panel">
       <SectionTitle icon={<BarChart3 />} eyebrow="Calculos automáticos" title="Resumen de costos" />
+      {isBallparkOnly && !isAdmin && <BallparkSummary budget={budget} totals={totals} />}
       <div className="summary-layout">
         <FeePanel budget={budget} updateNested={updateNested} />
         <TotalsPanel budget={budget} totals={totals} />
       </div>
       <ConsiderationsPanel budget={budget} updateNested={updateNested} />
-      <div className="chart-grid">
+      {isAdmin && <div className="chart-grid">
         <ChartCard title="Por area" data={chartDataFromTotals(areaTotals)} />
         <ChartCard title="Equipo vs tareas" data={modeData} />
         <ListCard title="Total por persona / rol" totals={peopleTotals} currency={budget.currency} />
-      </div>
+      </div>}
     </section>
   )
 }
 
+function BallparkSummary({ budget, totals }) {
+  const dayItems = budget.ballparkItems.filter((item) => item.included && item.sourceType === 'ballparkDayRate' && Number(item.quantity) > 0)
+
+  return (
+    <div className="ballpark-summary">
+      <div>
+        <p className="eyebrow">Incluye</p>
+        <h3>Etapas contempladas en el ballpark</h3>
+      </div>
+      <div className="ballpark-summary-grid">
+        {dayItems.map((item) => (
+          <div key={item.id}>
+            <strong>{item.name.replace('Jornadas ', '')}</strong>
+            <span>{item.quantity} jornadas</span>
+          </div>
+        ))}
+        {!dayItems.length && <p>Todavia no hay jornadas cargadas.</p>}
+      </div>
+      <p className="ballpark-summary-note">Este ballpark contempla una estimacion por etapas de produccion. El detalle fino de tareas, shots, assets y entregables se define en una propuesta integral al confirmar el proyecto.</p>
+      <strong className="summary-big-total">{money(totals.totalFinal, budget.currency)}</strong>
+    </div>
+  )
+}
+
 function ConsiderationsPanel({ budget, updateNested }) {
-  const considerations = budget.notes?.considerations?.length ? budget.notes.considerations : defaultConsiderations
+  const defaults = budget.budgetMode === 'Ballpark' ? ballparkConsiderations : defaultConsiderations
+  const savedConsiderations = budget.notes?.considerations || []
+  const shouldUseBallparkDefaults = budget.budgetMode === 'Ballpark' && !savedConsiderations.some((item) => item.id?.startsWith('ballpark-'))
+  const considerations = savedConsiderations.length && !shouldUseBallparkDefaults ? savedConsiderations : defaults
   const updateConsideration = (id, patch) => {
     updateNested('notes', {
       considerations: considerations.map((item) => (item.id === id ? { ...item, ...patch } : item)),
@@ -929,7 +1121,6 @@ function ConsiderationsPanel({ budget, updateNested }) {
         ))}
       </div>
       <Textarea label="Consideracion adicional libre" value={budget.notes.clientNotes} onChange={(v) => updateNested('notes', { clientNotes: v })} />
-      <Textarea label="Notas internas" value={budget.notes.internalNotes} onChange={(v) => updateNested('notes', { internalNotes: v })} />
     </div>
   )
 }
@@ -941,8 +1132,11 @@ function ExportSection({ budget, totals, updateNested, exportRef, exportImage, e
   const visibleTeam = budget.teamMembers.filter((row) => row.included)
   const specs = budget.productionSpecs || {}
   const includedWorks = (specs.includedWorks?.length ? specs.includedWorks : defaultIncludedWorks).filter((item) => item.included)
+  const exportConsiderationDefaults = budget.budgetMode === 'Ballpark' ? ballparkConsiderations : defaultConsiderations
+  const savedConsiderations = budget.notes?.considerations || []
+  const exportConsiderations = budget.budgetMode === 'Ballpark' && !savedConsiderations.some((item) => item.id?.startsWith('ballpark-')) ? exportConsiderationDefaults : (savedConsiderations.length ? savedConsiderations : exportConsiderationDefaults)
   const visibleConsiderations = [
-    ...(budget.notes?.considerations?.length ? budget.notes.considerations : defaultConsiderations).filter((item) => item.included).map((item) => item.text),
+    ...exportConsiderations.filter((item) => item.included).map((item) => item.text),
     budget.notes?.clientNotes,
   ].filter(Boolean)
 
@@ -969,7 +1163,7 @@ function ExportSection({ budget, totals, updateNested, exportRef, exportImage, e
           </div>
         )}
         {opts.projectData && <ExportBlock title="Datos del proyecto" rows={[
-          ['Cliente', budget.client], ['Agencia / productora', budget.agency || budget.productionCompany], ['Responsable', budget.owner], ['Moneda', budget.currency], ['Tipo', budget.budgetMode], ['Piezas / duracion', specs.pieceSummary],
+          ['Cliente', budget.client], ['Cliente final', budget.finalClient], ['Moneda', budget.currency], ['Tipo', budget.budgetMode], ['Piezas / duracion', specs.pieceSummary],
         ]} />}
         {opts.ballpark && totals.isBallpark && (
           <div className="export-block">
@@ -992,9 +1186,9 @@ function ExportSection({ budget, totals, updateNested, exportRef, exportImage, e
         {opts.ballpark && totals.isBallpark && <ExportTable title="Presupuesto ballpark" rows={visibleBallpark.map((r) => [r.name, r.description, r.quantity, money(lineSubtotal(r), budget.currency)])} />}
         {opts.detailed && totals.isDetailed && <ExportTable title="Presupuesto detallado" rows={visibleDetailed.map((r) => [r.area, r.taskName, `${r.quantity} ${r.unit}`, money(lineSubtotal(r), budget.currency)])} />}
         {opts.totals && <TotalsPanel budget={budget} totals={totals} exportMode />}
-        {opts.notes && <div className="export-notes"><h3>Consideraciones</h3>{visibleConsiderations.map((text, index) => <p key={`${text}-${index}`}>{text}</p>)}{opts.view === 'Interna' && <p>{budget.notes.internalNotes}</p>}</div>}
+        {opts.notes && <div className="export-notes"><h3>Consideraciones</h3>{visibleConsiderations.map((text, index) => <p key={`${text}-${index}`}>{text}</p>)}</div>}
         {opts.notes && (specs.paymentTerms || specs.billingInfo) && <div className="export-notes"><h3>Facturacion y pago</h3>{specs.billingInfo && <p>{specs.billingInfo}</p>}{specs.paymentTerms && <p>{specs.paymentTerms}</p>}</div>}
-        <footer>© BANI VFX - Postproduccion, VFX & 3D</footer>
+        <footer>BANI VFX - Postproduccion, VFX & 3D - www.bani-vfx.com</footer>
       </div>
     </section>
   )

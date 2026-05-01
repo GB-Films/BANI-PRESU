@@ -1,4 +1,4 @@
-import { ballparkPresets, taskPresets } from '../data/presets'
+import { ballparkPresets, rolePresets } from '../data/presets'
 
 const uid = () => crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`
 
@@ -51,6 +51,7 @@ export const createBudget = () => ({
   version: 'v1',
   owner: '',
   currency: 'USD',
+  language: 'es',
   budgetMode: 'Ambos',
   productionSpecs: {
     flowType: '',
@@ -78,9 +79,13 @@ export const createBudget = () => ({
     createTeamMember({ role: 'Compositor', area: 'VFX', dayRate: 440, days: 5 }),
   ],
   ballparkItems: ballparkPresets.slice(3, 6).map(createBallparkItem),
-  detailedTasks: taskPresets
-    .filter((task) => ['Supervision VFX', 'Tracking', 'Rotoscopia', 'Cleanup', 'Compositing', 'Revision y ajustes'].includes(task.taskName))
-    .map(createDetailedTask),
+  detailedTasks: rolePresets.slice(0, 4).map((role) => createDetailedTask({
+    area: role.area,
+    taskName: role.role,
+    description: `Trabajo de ${role.role}`,
+    unit: 'Dia',
+    unitValue: role.dayRate,
+  })),
   fees: {
     productionFeePercent: 12,
     contingencyPercent: 10,

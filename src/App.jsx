@@ -21,7 +21,7 @@ import {
 } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import './index.css'
-import { areaOptions, ballparkPresets, rolePresets, statusOptions, taskPresets, unitOptions } from './data/presets'
+import { areaOptions, ballparkPresets, rolePresets, statusOptions, unitOptions } from './data/presets'
 import {
   calculateBudget,
   chartDataFromTotals,
@@ -55,7 +55,6 @@ const defaultPricingCatalog = {
     { key: 'vfx', name: 'VFX', description: 'Jornadas de VFX', unitValue: 440 },
     { key: '3d', name: '3D', description: 'Jornadas de 3D', unitValue: 430 },
   ],
-  tasks: taskPresets,
 }
 const mergeDayRates = (rates = []) => {
   const saved = rates.length ? rates : defaultPricingCatalog.ballparkDayRates
@@ -100,50 +99,67 @@ const ballparkConsiderations = [
   { id: 'ballpark-scope', text: 'El alcance queda sujeto a revision de materiales finales, cronograma y entregables confirmados.', included: true },
   { id: 'ballpark-validity', text: 'Propuesta valida por 15 dias corridos desde la entrega.', included: true },
 ]
-const budgetPresetModels = [
+const englishBallparkConsiderations = [
   {
-    id: 'digital-vfx-pack',
-    name: 'Contenido digital + VFX',
-    description: 'Base para pieza hero con adaptaciones, composicion, color y sonido.',
-    budgetMode: 'Ballpark',
-    specs: {
-      commercialTitle: 'Contenido digital',
-      pieceSummary: '1 pieza hero con adaptaciones 16:9, 9:16 y 1:1',
-      development: 'Postproduccion integral de contenido digital con armado de entregables, composicion VFX, color y sonido.',
-      deliveryFormats: '16:9, 9:16, 1:1',
-      includedWorks: defaultIncludedWorks.map((item) => ({ ...item, included: ['composicion', 'sonido', 'color'].includes(item.id) })),
-    },
-    days: { gestion: 2, montaje: 3, sonido: 1, color: 1, vfx: 5, '3d': 0 },
+    id: 'ballpark-not-final-en',
+    text: 'This budget is an estimate. Once the project is confirmed, a full proposal will be delivered with the detailed scope of work. Therefore, the final budget may change.',
+    included: true,
   },
-  {
-    id: 'hero-3d-pack',
-    name: 'Hero 3D + compositing',
-    description: 'Para videos con asset 3D compartido entre varios shots.',
-    budgetMode: 'Ballpark',
-    specs: {
-      commercialTitle: 'Hero 3D',
-      pieceSummary: 'Video hero con asset 3D y reducciones',
-      development: 'Desarrollo de asset 3D, integracion en shots seleccionados, composicion final, color y sonido.',
-      deliveryFormats: 'Hero + reducciones 6s, 15s y 30s',
-      includedWorks: defaultIncludedWorks.map((item) => ({ ...item, included: ['modelado-3d', 'trackeo-3d', 'composicion', 'renders-3d', 'sonido', 'color'].includes(item.id) })),
-    },
-    days: { gestion: 3, montaje: 3, sonido: 1, color: 1, vfx: 6, '3d': 8 },
-  },
-  {
-    id: 'post-basic-pack',
-    name: 'Post integral simple',
-    description: 'Montaje, color, sonido y delivery sin VFX complejo.',
-    budgetMode: 'Ballpark',
-    specs: {
-      commercialTitle: 'Postproduccion integral',
-      pieceSummary: 'Pieza principal con master y adaptaciones',
-      development: 'Proceso de montaje, terminacion, color, sonido y preparacion de masters finales.',
-      deliveryFormats: 'Master 16:9 + versiones sociales',
-      includedWorks: defaultIncludedWorks.map((item) => ({ ...item, included: ['sonido', 'color'].includes(item.id) })),
-    },
-    days: { gestion: 1, montaje: 4, sonido: 1, color: 1, vfx: 0, '3d': 0 },
-  },
+  { id: 'ballpark-scope-en', text: 'Scope is subject to review of final materials, schedule and confirmed deliverables.', included: true },
+  { id: 'ballpark-validity-en', text: 'Proposal valid for 15 calendar days from delivery.', included: true },
 ]
+const defaultEnglishConsiderations = [
+  { id: 'validity-en', text: 'Quote valid for 15 days.', included: true },
+  { id: 'scope-review-en', text: 'Scope subject to review of final materials.', included: true },
+  { id: 'changes-en', text: 'Changes outside the quoted scope will be budgeted separately.', included: false },
+  { id: 'materials-en', text: 'Schedule is subject to timely delivery of materials and feedback.', included: false },
+]
+const textByLanguage = {
+  es: {
+    language: 'Idioma',
+    spanish: 'Castellano',
+    english: 'Ingles',
+    projectData: 'Datos del proyecto',
+    client: 'Cliente',
+    finalClient: 'Cliente final',
+    currency: 'Moneda',
+    type: 'Tipo',
+    pieces: 'Piezas / duracion',
+    proposal: 'Propuesta',
+    executiveSummary: 'Resumen ejecutivo',
+    subtotalTeam: 'Subtotal equipo',
+    subtotalBallpark: 'Subtotal ballpark',
+    subtotalDetailed: 'Subtotal detallado',
+    totalFinal: 'Total final',
+    team: 'Equipo involucrado',
+    detailed: 'Presupuesto detallado',
+    notes: 'Consideraciones',
+    billing: 'Facturacion y pago',
+  },
+  en: {
+    language: 'Language',
+    spanish: 'Spanish',
+    english: 'English',
+    projectData: 'Project details',
+    client: 'Client',
+    finalClient: 'Final client',
+    currency: 'Currency',
+    type: 'Type',
+    pieces: 'Pieces / duration',
+    proposal: 'Proposal',
+    executiveSummary: 'Executive summary',
+    subtotalTeam: 'Team subtotal',
+    subtotalBallpark: 'Ballpark subtotal',
+    subtotalDetailed: 'Detailed subtotal',
+    totalFinal: 'Final total',
+    team: 'Team involved',
+    detailed: 'Detailed budget',
+    notes: 'Considerations',
+    billing: 'Billing and payment',
+  },
+}
+const getLanguage = (budget) => budget.language === 'en' ? 'en' : 'es'
+const t = (budget, key) => textByLanguage[getLanguage(budget)]?.[key] || textByLanguage.es[key] || key
 const appUsers = {
   admin: { password: 'admin', role: 'admin', label: 'Administrador' },
   crew: { password: 'crew', role: 'producer', label: 'Crew / Productor' },
@@ -544,44 +560,29 @@ function ProjectBreakdownStep({ budget, pricingCatalog, updateNested, updateRow,
 }
 
 function PresetModelStep({ budget, pricingCatalog, updateBudget }) {
-  const dayRates = pricingCatalog.ballparkDayRates?.length ? pricingCatalog.ballparkDayRates : defaultPricingCatalog.ballparkDayRates
   const applyPreset = (preset) => {
-    const dayItems = dayRates
-      .map((rate) => {
-        const quantity = Number(preset.days?.[rate.key] || 0)
-        if (!quantity) return null
-        return createBallparkItem({
-          name: `Jornadas ${rate.name}`,
-          description: rate.description,
-          quantity,
-          unitValue: Number(rate.unitValue || 0),
-          sourceType: 'ballparkDayRate',
-          sourceKey: rate.key,
-        })
-      })
-      .filter(Boolean)
-
     updateBudget({
-      budgetMode: preset.budgetMode,
+      budgetMode: 'Ballpark',
       productionSpecs: {
         ...budget.productionSpecs,
-        ...preset.specs,
         flowType: '',
         presetName: preset.name,
+        commercialTitle: preset.name,
+        development: preset.description,
       },
-      ballparkItems: dayItems,
+      ballparkItems: [createBallparkItem(preset)],
     })
   }
 
   return (
     <section className="panel">
-      <SectionTitle icon={<Sparkles />} eyebrow="Modelos prearmados" title="Elegir presupuesto base" />
+      <SectionTitle icon={<Sparkles />} eyebrow="Presets proyectos" title="Elegir presupuesto base" />
       <div className="preset-model-grid">
-        {budgetPresetModels.map((preset) => (
+        {(pricingCatalog.ballpark?.length ? pricingCatalog.ballpark : defaultPricingCatalog.ballpark).map((preset, index) => (
           <button key={preset.id} className={budget.productionSpecs?.presetName === preset.name ? 'selected' : ''} onClick={() => applyPreset(preset)}>
             <strong>{preset.name}</strong>
             <span>{preset.description}</span>
-            <small>Copiar modelo</small>
+            <small>Copiar preset {index + 1}</small>
           </button>
         ))}
       </div>
@@ -815,6 +816,7 @@ function ProjectSection({ budget, updateBudget, updateNested, showBudgetType = t
         <Input label="Version" value={budget.version} onChange={(v) => updateBudget({ version: v })} />
         {!producerMode && <Input label="Responsable" value={budget.owner} onChange={(v) => updateBudget({ owner: v })} />}
         <Select label="Moneda" value={budget.currency} options={['USD', 'ARS']} onChange={(v) => updateBudget({ currency: v })} />
+        <Select label={t(budget, 'language')} value={getLanguage(budget)} options={['es', 'en']} labels={{ es: t(budget, 'spanish'), en: t(budget, 'english') }} onChange={(v) => updateBudget({ language: v })} />
         {showBudgetType && <Select label="Tipo" value={budget.budgetMode} options={['Ballpark', 'Detallado', 'Ambos']} onChange={(v) => updateBudget({ budgetMode: v })} />}
       </div>
     </section>
@@ -940,54 +942,35 @@ function BallparkSection({ budget, isAdmin, pricingCatalog, updateRow, removeRow
 }
 
 function DetailedSection({ budget, isAdmin, pricingCatalog, updateRow, removeRow, updateBudget }) {
-  const addPreset = (preset) => updateBudget({ detailedTasks: [...budget.detailedTasks, createDetailedTask(preset)] })
-  const taskOptions = pricingCatalog.tasks.map((preset) => `${preset.area}: ${preset.taskName}`)
-  const updateTaskPreset = (row, label) => {
-    const preset = pricingCatalog.tasks.find((item) => `${item.area}: ${item.taskName}` === label)
-    if (!preset) return
-    updateRow('detailedTasks', row.id, {
-      area: preset.area,
-      taskName: preset.taskName,
-      description: preset.description,
-      unit: preset.unit,
-      unitValue: Number(preset.unitValue),
-    })
-  }
+  const roleCatalog = pricingCatalog.roles?.length ? pricingCatalog.roles : defaultPricingCatalog.roles
+  const addRoleTask = (role) => updateBudget({
+    detailedTasks: [...budget.detailedTasks, createDetailedTask({
+      area: role.area,
+      taskName: role.role,
+      description: `Trabajo de ${role.role}`,
+      unit: 'Dia',
+      unitValue: Number(role.dayRate || 0),
+    })],
+  })
   const headers = isAdmin
     ? ['Incl.', 'Area', 'Tarea', 'Descripcion', 'Resp.', 'Cant.', 'Unidad', 'Unitario', 'Estado', 'Subtotal', 'Notas', '']
     : ['Incl.', 'Tarea', 'Descripcion', 'Resp.', 'Cant.', 'Unidad', 'Estado', 'Subtotal', 'Notas', '']
-  const addProducerLine = (area, taskName, description, unit = 'Dia') => {
-    const preset = pricingCatalog.tasks.find((item) => item.area === area) || {}
-    updateBudget({
-      detailedTasks: [
-        ...budget.detailedTasks,
-        createDetailedTask({
-          ...preset,
-          area,
-          taskName,
-          description,
-          unit,
-          quantity: 1,
-        }),
-      ],
-    })
-  }
 
   return (
-    <CrudSection title="Presupuesto Detallado" eyebrow={isAdmin ? 'Tareas por area / valores' : 'Por shot, entregable o asset'} icon={<BarChart3 />} actions={isAdmin ? <PresetButtons presets={pricingCatalog.tasks} getLabel={(p) => `${p.area}: ${p.taskName}`} onPick={addPreset} /> : null}>
-      {!isAdmin && (
+    <CrudSection title="Presupuesto Detallado" eyebrow={isAdmin ? 'Valores de equipo / detalle' : 'Por rol, shot, entregable o asset'} icon={<BarChart3 />} actions={<PresetButtons presets={roleCatalog} getLabel={(p) => p.role} onPick={addRoleTask} />}>
+      {(
         <div className="detailed-planner">
-          <button onClick={() => addProducerLine('Postproduccion', 'Montaje / color / sonido', 'Describir piezas, reducciones, relaciones de aspecto, masters y necesidades de sonido/color.')}>
-            <strong>Montaje, color y sonido</strong>
-            <span>Para piezas hero, adaptaciones, reducciones y masters finales.</span>
+          <button onClick={() => addRoleTask(roleCatalog.find((role) => getRoleSection(role.area) === 'POST') || roleCatalog[0])}>
+            <strong>POST</strong>
+            <span>Usa roles de Valores de equipo para montaje, color, sonido, produccion y coordinacion.</span>
           </button>
-          <button onClick={() => addProducerLine('VFX', 'Shot / tarea VFX', 'Describir shot, plano, invisible VFX, tracking, roto, cleanup, keying o compositing.', 'Plano')}>
+          <button onClick={() => addRoleTask(roleCatalog.find((role) => getRoleSection(role.area) === 'VFX') || roleCatalog[0])}>
             <strong>VFX</strong>
-            <span>Para cargar por shot, tarea o bloque de planos.</span>
+            <span>Agrega una linea basada en roles VFX; despues describis shot, tarea o entregable.</span>
           </button>
-          <button onClick={() => addProducerLine('3D', 'Asset / tarea 3D', 'Describir asset, modelado, lookdev, rig, animacion, render o integracion 3D.')}>
+          <button onClick={() => addRoleTask(roleCatalog.find((role) => getRoleSection(role.area) === '3D') || roleCatalog[0])}>
             <strong>3D</strong>
-            <span>Para assets reutilizables o tareas que atraviesan varios shots.</span>
+            <span>Agrega una linea para assets, modelado, lookdev, animacion, render o integracion.</span>
           </button>
         </div>
       )}
@@ -1009,7 +992,7 @@ function DetailedSection({ budget, isAdmin, pricingCatalog, updateRow, removeRow
           </tr>
         ))}
       </EditableTable>
-      <button className="add-row" onClick={() => updateBudget({ detailedTasks: [...budget.detailedTasks, createDetailedTask()] })}><Plus size={16} /> Agregar tarea</button>
+      <button className="add-row" onClick={() => addRoleTask(roleCatalog[0] || {})}><Plus size={16} /> Agregar tarea</button>
     </CrudSection>
   )
 }
@@ -1070,10 +1053,14 @@ function BallparkSummary({ budget, totals }) {
 }
 
 function ConsiderationsPanel({ budget, updateNested }) {
-  const defaults = budget.budgetMode === 'Ballpark' ? ballparkConsiderations : defaultConsiderations
+  const isEnglish = getLanguage(budget) === 'en'
+  const defaults = budget.budgetMode === 'Ballpark'
+    ? (isEnglish ? englishBallparkConsiderations : ballparkConsiderations)
+    : (isEnglish ? defaultEnglishConsiderations : defaultConsiderations)
   const savedConsiderations = budget.notes?.considerations || []
-  const shouldUseBallparkDefaults = budget.budgetMode === 'Ballpark' && !savedConsiderations.some((item) => item.id?.startsWith('ballpark-'))
-  const considerations = savedConsiderations.length && !shouldUseBallparkDefaults ? savedConsiderations : defaults
+  const expectedSuffix = isEnglish ? '-en' : ''
+  const shouldUseDefaults = !savedConsiderations.length || (budget.budgetMode === 'Ballpark' && !savedConsiderations.some((item) => item.id?.startsWith('ballpark-') && item.id.endsWith(expectedSuffix)))
+  const considerations = shouldUseDefaults ? defaults : savedConsiderations
   const updateConsideration = (id, patch) => {
     updateNested('notes', {
       considerations: considerations.map((item) => (item.id === id ? { ...item, ...patch } : item)),
@@ -1120,9 +1107,14 @@ function ExportSection({ budget, totals, updateNested, exportRef, exportImage, e
   const visibleTeam = budget.teamMembers.filter((row) => row.included)
   const specs = budget.productionSpecs || {}
   const includedWorks = (specs.includedWorks?.length ? specs.includedWorks : defaultIncludedWorks).filter((item) => item.included)
-  const exportConsiderationDefaults = budget.budgetMode === 'Ballpark' ? ballparkConsiderations : defaultConsiderations
+  const isEnglish = getLanguage(budget) === 'en'
+  const exportConsiderationDefaults = budget.budgetMode === 'Ballpark'
+    ? (isEnglish ? englishBallparkConsiderations : ballparkConsiderations)
+    : (isEnglish ? defaultEnglishConsiderations : defaultConsiderations)
   const savedConsiderations = budget.notes?.considerations || []
-  const exportConsiderations = budget.budgetMode === 'Ballpark' && !savedConsiderations.some((item) => item.id?.startsWith('ballpark-')) ? exportConsiderationDefaults : (savedConsiderations.length ? savedConsiderations : exportConsiderationDefaults)
+  const expectedSuffix = isEnglish ? '-en' : ''
+  const shouldUseExportDefaults = !savedConsiderations.length || (budget.budgetMode === 'Ballpark' && !savedConsiderations.some((item) => item.id?.startsWith('ballpark-') && item.id.endsWith(expectedSuffix)))
+  const exportConsiderations = shouldUseExportDefaults ? exportConsiderationDefaults : savedConsiderations
   const visibleConsiderations = [
     ...exportConsiderations.filter((item) => item.included).map((item) => item.text),
   ].filter(Boolean)
@@ -1149,12 +1141,12 @@ function ExportSection({ budget, totals, updateNested, exportRef, exportImage, e
             <span>{budget.client || 'Cliente'} - {budget.date}</span>
           </div>
         )}
-        {opts.projectData && <ExportBlock title="Datos del proyecto" rows={[
-          ['Cliente', budget.client], ['Cliente final', budget.finalClient], ['Moneda', budget.currency], ['Tipo', budget.budgetMode], ['Piezas / duracion', specs.pieceSummary],
+        {opts.projectData && <ExportBlock title={t(budget, 'projectData')} rows={[
+          [t(budget, 'client'), budget.client], [t(budget, 'finalClient'), budget.finalClient], [t(budget, 'currency'), budget.currency], [t(budget, 'type'), budget.budgetMode], [t(budget, 'pieces'), specs.pieceSummary],
         ]} />}
         {opts.ballpark && totals.isBallpark && (
           <div className="export-block">
-            <h3>{specs.commercialTitle || 'Propuesta'}</h3>
+            <h3>{specs.commercialTitle || t(budget, 'proposal')}</h3>
             {specs.development && <p>{specs.development}</p>}
             {!!includedWorks.length && (
               <table>
@@ -1163,18 +1155,18 @@ function ExportSection({ budget, totals, updateNested, exportRef, exportImage, e
             )}
           </div>
         )}
-        {opts.executiveSummary && <ExportBlock title="Resumen ejecutivo" rows={[
-          ['Subtotal equipo', money(totals.subtotalTeam, budget.currency)],
-          ['Subtotal ballpark', money(totals.subtotalBallpark, budget.currency)],
-          ['Subtotal detallado', money(totals.subtotalDetailed, budget.currency)],
-          ['Total final', money(totals.totalFinal, budget.currency)],
+        {opts.executiveSummary && <ExportBlock title={t(budget, 'executiveSummary')} rows={[
+          [t(budget, 'subtotalTeam'), money(totals.subtotalTeam, budget.currency)],
+          [t(budget, 'subtotalBallpark'), money(totals.subtotalBallpark, budget.currency)],
+          [t(budget, 'subtotalDetailed'), money(totals.subtotalDetailed, budget.currency)],
+          [t(budget, 'totalFinal'), money(totals.totalFinal, budget.currency)],
         ]} highlight />}
-        {opts.team && <ExportTable title="Equipo involucrado" rows={visibleTeam.map((r) => [r.name || r.role, r.area, `${r.days} dias`, money(teamSubtotal(r), budget.currency)])} />}
+        {opts.team && <ExportTable title={t(budget, 'team')} rows={visibleTeam.map((r) => [r.name || r.role, r.area, `${r.days} ${isEnglish ? 'days' : 'dias'}`, money(teamSubtotal(r), budget.currency)])} />}
         {opts.ballpark && totals.isBallpark && <ExportTable title="Presupuesto ballpark" rows={visibleBallpark.map((r) => [r.name, r.description, r.quantity, money(lineSubtotal(r), budget.currency)])} />}
-        {opts.detailed && totals.isDetailed && <ExportTable title="Presupuesto detallado" rows={visibleDetailed.map((r) => [r.area, r.taskName, `${r.quantity} ${r.unit}`, money(lineSubtotal(r), budget.currency)])} />}
+        {opts.detailed && totals.isDetailed && <ExportTable title={t(budget, 'detailed')} rows={visibleDetailed.map((r) => [r.area, r.taskName, `${r.quantity} ${r.unit}`, money(lineSubtotal(r), budget.currency)])} />}
         {opts.totals && <TotalsPanel budget={budget} totals={totals} exportMode />}
-        {opts.notes && <div className="export-notes"><h3>Consideraciones</h3>{visibleConsiderations.map((text, index) => <p key={`${text}-${index}`}>{text}</p>)}</div>}
-        {opts.notes && (specs.paymentTerms || specs.billingInfo) && <div className="export-notes"><h3>Facturacion y pago</h3>{specs.billingInfo && <p>{specs.billingInfo}</p>}{specs.paymentTerms && <p>{specs.paymentTerms}</p>}</div>}
+        {opts.notes && <div className="export-notes"><h3>{t(budget, 'notes')}</h3>{visibleConsiderations.map((text, index) => <p key={`${text}-${index}`}>{text}</p>)}</div>}
+        {opts.notes && (specs.paymentTerms || specs.billingInfo) && <div className="export-notes"><h3>{t(budget, 'billing')}</h3>{specs.billingInfo && <p>{specs.billingInfo}</p>}{specs.paymentTerms && <p>{specs.paymentTerms}</p>}</div>}
         <footer>BANI VFX - Postproduccion, VFX & 3D - www.bani-vfx.com</footer>
       </div>
     </section>
@@ -1292,7 +1284,7 @@ function AdminSection({ pricingCatalog, setPricingCatalog }) {
       </AdminCatalogBlock>
 
       <AdminCatalogBlock
-        title="Presets Ballpark"
+        title="Presets proyectos"
         actionLabel="Agregar partida"
         headers={['', 'Partida', 'Descripcion', 'Cantidad', 'Unitario', '']}
         onAdd={() => addCatalogRow('ballpark', { name: 'Nueva partida', description: '', quantity: 1, unitValue: 0 })}
@@ -1334,31 +1326,6 @@ function AdminSection({ pricingCatalog, setPricingCatalog }) {
               <td><CellInput value={row.description} onChange={(v) => updateCatalogRow('ballparkDayRates', index, { description: v })} /></td>
               <td><CellInput type="number" value={row.unitValue} onChange={(v) => updateCatalogRow('ballparkDayRates', index, { unitValue: Number(v) })} /></td>
               <td><IconButton onClick={() => removeCatalogRow('ballparkDayRates', index)} icon={<Trash2 size={15} />} /></td>
-            </>
-          )}
-        />
-      </AdminCatalogBlock>
-
-      <AdminCatalogBlock
-        title="Presets Detallados"
-        actionLabel="Agregar tarea"
-        headers={['', 'Area', 'Tarea', 'Descripcion', 'Unidad', 'Unitario', '']}
-        onAdd={() => addCatalogRow('tasks', { area: 'VFX', taskName: 'Nueva tarea', description: '', unit: 'Dia', unitValue: 0 })}
-      >
-        <CatalogRows
-          collection="tasks"
-          rows={pricingCatalog.tasks}
-          startDrag={startDrag}
-          dropRow={(index) => dropCatalogRow('tasks', index)}
-          clearDrag={clearDrag}
-          renderCells={(row, index) => (
-            <>
-              <td><CellInput value={row.area} onChange={(v) => updateCatalogRow('tasks', index, { area: v })} /></td>
-              <td><CellInput value={row.taskName} onChange={(v) => updateCatalogRow('tasks', index, { taskName: v })} /></td>
-              <td><CellInput value={row.description} onChange={(v) => updateCatalogRow('tasks', index, { description: v })} /></td>
-              <td><CellSelect value={row.unit} options={unitOptions} onChange={(v) => updateCatalogRow('tasks', index, { unit: v })} /></td>
-              <td><CellInput type="number" value={row.unitValue} onChange={(v) => updateCatalogRow('tasks', index, { unitValue: Number(v) })} /></td>
-              <td><IconButton onClick={() => removeCatalogRow('tasks', index)} icon={<Trash2 size={15} />} /></td>
             </>
           )}
         />
@@ -1480,15 +1447,15 @@ function FeePanel({ budget, updateNested }) {
 function TotalsPanel({ budget, totals, exportMode = false }) {
   return (
     <div className={exportMode ? 'totals-panel export-totals' : 'totals-panel'}>
-      <Line label="Subtotal equipo" value={money(totals.subtotalTeam, budget.currency)} />
-      <Line label="Subtotal ballpark" value={money(totals.subtotalBallpark, budget.currency)} />
-      <Line label="Subtotal detallado" value={money(totals.subtotalDetailed, budget.currency)} />
+      <Line label={t(budget, 'subtotalTeam')} value={money(totals.subtotalTeam, budget.currency)} />
+      <Line label={t(budget, 'subtotalBallpark')} value={money(totals.subtotalBallpark, budget.currency)} />
+      <Line label={t(budget, 'subtotalDetailed')} value={money(totals.subtotalDetailed, budget.currency)} />
       <Line label="Base" value={money(totals.base, budget.currency)} />
       <Line label="Fee" value={money(totals.productionFee, budget.currency)} />
       <Line label="Contingencia" value={money(totals.contingency, budget.currency)} />
       <Line label="Descuento" value={`-${money(totals.discount, budget.currency)}`} />
       <Line label="Impuestos" value={money(totals.tax, budget.currency)} />
-      <Line label="Total final" value={money(totals.totalFinal, budget.currency)} strong />
+      <Line label={t(budget, 'totalFinal')} value={money(totals.totalFinal, budget.currency)} strong />
       {budget.budgetMode === 'Ambos' && <Line label="Diferencia ballpark/detallado" value={money(totals.ballparkDetailedDiff, budget.currency)} />}
     </div>
   )

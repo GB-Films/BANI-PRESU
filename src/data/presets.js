@@ -1,4 +1,5 @@
 export const areaOptions = [
+  'Gestion de proyecto',
   'Produccion',
   'Postproduccion',
   'VFX',

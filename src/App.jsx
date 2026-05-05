@@ -1270,7 +1270,7 @@ function AdminSection({ pricingCatalog, setPricingCatalog }) {
         title="Valores de equipo"
         actionLabel="Agregar rol"
         headers={['', 'Rol', 'Area', 'Valor/dia', '']}
-        onAdd={() => addCatalogRow('roles', { role: 'Nuevo rol', area: 'VFX', dayRate: 0 })}
+        onAdd={() => addCatalogRow('roles', { role: 'Nuevo rol', area: 'Gestion de proyecto', dayRate: 0 })}
       >
         <RoleCatalogRows
           rows={pricingCatalog.roles}
@@ -1352,16 +1352,18 @@ function AdminCatalogBlock({ title, actionLabel, headers, onAdd, children }) {
   )
 }
 
-const roleSections = ['POST', 'VFX', '3D']
+const roleSections = ['Gestion de proyecto', 'POST', 'VFX', '3D']
 
 function getRoleSection(area = '') {
   const normalized = area.toLowerCase()
+  if (normalized.includes('gestion') || normalized.includes('produccion') || normalized.includes('coordinacion') || normalized.includes('producer') || normalized.includes('coordination')) return 'Gestion de proyecto'
   if (normalized.includes('3d')) return '3D'
   if (normalized.includes('vfx') || normalized.includes('motion') || normalized.includes('supervision')) return 'VFX'
   return 'POST'
 }
 
 function defaultAreaForRoleSection(section) {
+  if (section === 'Gestion de proyecto') return 'Gestion de proyecto'
   if (section === '3D') return '3D'
   if (section === 'VFX') return 'VFX'
   return 'Postproduccion'

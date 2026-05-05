@@ -1258,6 +1258,12 @@ h3 {
   text-transform: uppercase;
 }
 
+.export-client-mark img {
+  max-width: 180px;
+  max-height: 72px;
+  object-fit: contain;
+}
+
 .export-project-intro h3 {
   margin: 5px 0 12px;
   color: var(--bani-pink);

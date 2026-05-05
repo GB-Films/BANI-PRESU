@@ -44,6 +44,8 @@ export const createBudget = () => ({
   projectName: 'Nuevo presupuesto BANI VFX',
   client: '',
   finalClient: '',
+  clientProposalName: '',
+  clientLogo: '',
   agency: '',
   productionCompany: '',
   date: new Date().toISOString().slice(0, 10),

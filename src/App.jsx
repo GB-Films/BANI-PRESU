@@ -802,6 +802,16 @@ function Dashboard({ budgets, currentId, setCurrentId, deleteBudget, duplicateBu
 }
 
 function ProjectSection({ budget, updateBudget, updateNested, showBudgetType = true, producerMode = false }) {
+  const setClientLogo = (file) => {
+    if (!file) {
+      updateBudget({ clientLogo: '' })
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => updateBudget({ clientLogo: reader.result })
+    reader.readAsDataURL(file)
+  }
+
   return (
     <section className="panel">
       <SectionTitle icon={<FileText />} eyebrow="Base del presupuesto" title="Datos del proyecto" />
@@ -809,6 +819,11 @@ function ProjectSection({ budget, updateBudget, updateNested, showBudgetType = t
         <Input label="Nombre del proyecto" value={budget.projectName} onChange={(v) => updateBudget({ projectName: v })} />
         <Input label="Cliente" value={budget.client} onChange={(v) => updateBudget({ client: v })} />
         <Input label="Cliente final" value={budget.finalClient || ''} onChange={(v) => updateBudget({ finalClient: v })} />
+        <Input label="Nombre cliente para export" value={budget.clientProposalName || ''} onChange={(v) => updateBudget({ clientProposalName: v })} />
+        <label className="field">
+          <span>Logo cliente para export</span>
+          <input type="file" accept="image/*" onChange={(e) => setClientLogo(e.target.files[0])} />
+        </label>
         {!producerMode && <Input label="Productora / agencia" value={budget.agency} onChange={(v) => updateBudget({ agency: v })} />}
         {!producerMode && <Input label="Productora" value={budget.productionCompany} onChange={(v) => updateBudget({ productionCompany: v })} />}
         <Input type="date" label="Fecha" value={budget.date} onChange={(v) => updateBudget({ date: v })} />
@@ -1103,10 +1118,10 @@ function ConsiderationsPanel({ budget, updateNested }) {
 function ExportSection({ budget, totals, updateNested, exportRef, exportImage, exportPdf }) {
   const opts = budget.exportOptions
   const isPureBallpark = budget.budgetMode === 'Ballpark'
-  const dayRateBallparkRows = budget.ballparkItems.filter((row) => row.included && row.sourceType === 'ballparkDayRate')
+  const dayRateBallparkRows = budget.ballparkItems.filter((row) => row.included && row.sourceType === 'ballparkDayRate' && Number(row.quantity || 0) > 0)
   const visibleBallpark = isPureBallpark && dayRateBallparkRows.length
     ? dayRateBallparkRows
-    : budget.ballparkItems.filter((row) => row.included)
+    : budget.ballparkItems.filter((row) => row.included && Number(row.quantity || 0) > 0)
   const visibleDetailed = budget.detailedTasks.filter((row) => row.included)
   const visibleTeam = isPureBallpark ? [] : budget.teamMembers.filter((row) => row.included)
   const specs = budget.productionSpecs || {}
@@ -1122,15 +1137,16 @@ function ExportSection({ budget, totals, updateNested, exportRef, exportImage, e
   const visibleConsiderations = [
     ...exportConsiderations.filter((item) => item.included).map((item) => item.text),
   ].filter(Boolean)
+  const clientExportName = budget.clientProposalName || ''
+  const showClientMark = Boolean(clientExportName || budget.clientLogo)
 
   return (
     <section className="panel">
       <SectionTitle icon={<Download />} eyebrow="PDF / PNG" title="Vista de presupuesto para exportar" />
       <div className="export-controls">
-        {['cover', 'projectData', 'executiveSummary', 'team', 'ballpark', 'detailed', 'totals', 'notes'].map((key) => (
+        {!isPureBallpark && ['cover', 'projectData', 'executiveSummary', 'team', 'ballpark', 'detailed', 'totals', 'notes'].map((key) => (
           <label key={key}><input type="checkbox" checked={opts[key]} onChange={(e) => updateNested('exportOptions', { [key]: e.target.checked })} /> {key}</label>
         ))}
-        <Select label="Vista" value={opts.view} options={['Cliente', 'Interna']} onChange={(v) => updateNested('exportOptions', { view: v })} />
         <button className="primary" onClick={exportPdf}><FileText size={16} /> PDF</button>
         <button className="primary" onClick={exportImage}><FileImage size={16} /> PNG</button>
       </div>
@@ -1144,10 +1160,13 @@ function ExportSection({ budget, totals, updateNested, exportRef, exportImage, e
                 <div className="export-logo"><img src={budget.brandSettings.logo || `${assetBase}logo.png`} alt="BANI VFX" /></div>
                 <p>{budget.productionCompany || 'Gran Berta SRL'} / BANI VFX</p>
               </div>
-              <div className="export-client-mark">
-                <span>{isEnglish ? 'Prepared for' : 'Propuesta para'}</span>
-                <strong>{budget.finalClient || budget.client || (isEnglish ? 'Client' : 'Cliente')}</strong>
-              </div>
+              {showClientMark && (
+                <div className="export-client-mark">
+                  <span>{isEnglish ? 'Prepared for' : 'Propuesta para'}</span>
+                  {budget.clientLogo && <img src={budget.clientLogo} alt={clientExportName || 'Cliente'} />}
+                  {clientExportName && <strong>{clientExportName}</strong>}
+                </div>
+              )}
             </div>
             <div className="export-block export-project-intro">
               <p>{budget.budgetNumber} / {budget.version} - {budget.date}</p>
@@ -1169,9 +1188,9 @@ function ExportSection({ budget, totals, updateNested, exportRef, exportImage, e
                 ))}
               </table>
             </div>
-            {opts.totals && <BallparkFinalPrice budget={budget} totals={totals} />}
-            {opts.notes && <div className="export-notes"><h3>{t(budget, 'notes')}</h3>{visibleConsiderations.map((text, index) => <p key={`${text}-${index}`}>{text}</p>)}</div>}
-            {opts.notes && (specs.paymentTerms || specs.billingInfo) && <div className="export-notes"><h3>{t(budget, 'billing')}</h3>{specs.billingInfo && <p>{specs.billingInfo}</p>}{specs.paymentTerms && <p>{specs.paymentTerms}</p>}</div>}
+            <BallparkFinalPrice budget={budget} totals={totals} />
+            <div className="export-notes"><h3>{t(budget, 'notes')}</h3>{visibleConsiderations.map((text, index) => <p key={`${text}-${index}`}>{text}</p>)}</div>
+            {(specs.paymentTerms || specs.billingInfo) && <div className="export-notes"><h3>{t(budget, 'billing')}</h3>{specs.billingInfo && <p>{specs.billingInfo}</p>}{specs.paymentTerms && <p>{specs.paymentTerms}</p>}</div>}
           </>
         ) : (
           <>

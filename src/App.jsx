@@ -1137,44 +1137,82 @@ function ExportSection({ budget, totals, updateNested, exportRef, exportImage, e
 
       <div className="export-page" ref={exportRef} style={{ backgroundColor: budget.brandSettings.backgroundColor }}>
         {budget.brandSettings.technicalGrid && <div className="export-grid-bg" />}
-        {opts.cover && (
-          <div className="export-cover">
-            <div className="export-logo"><img src={budget.brandSettings.logo || `${assetBase}logo.png`} alt="BANI VFX" /></div>
-            <p>{budget.budgetNumber} / {budget.version}</p>
-            <h2>{budget.projectName}</h2>
-            <span>{budget.client || 'Cliente'} - {budget.date}</span>
-          </div>
-        )}
-        {opts.projectData && <ExportBlock title={t(budget, 'projectData')} rows={[
-          [t(budget, 'client'), budget.client], [t(budget, 'finalClient'), budget.finalClient], [t(budget, 'currency'), budget.currency], [t(budget, 'type'), budget.budgetMode], [t(budget, 'pieces'), specs.pieceSummary],
-        ]} />}
-        {opts.ballpark && totals.isBallpark && (
-          <div className="export-block">
-            <h3>{specs.commercialTitle || t(budget, 'proposal')}</h3>
-            {specs.development && <p>{specs.development}</p>}
-            {!!includedWorks.length && (
+        {isPureBallpark ? (
+          <>
+            <div className="export-ballpark-hero">
+              <div>
+                <div className="export-logo"><img src={budget.brandSettings.logo || `${assetBase}logo.png`} alt="BANI VFX" /></div>
+                <p>{budget.productionCompany || 'Gran Berta SRL'} / BANI VFX</p>
+              </div>
+              <div className="export-client-mark">
+                <span>{isEnglish ? 'Prepared for' : 'Propuesta para'}</span>
+                <strong>{budget.finalClient || budget.client || (isEnglish ? 'Client' : 'Cliente')}</strong>
+              </div>
+            </div>
+            <div className="export-block export-project-intro">
+              <p>{budget.budgetNumber} / {budget.version} - {budget.date}</p>
+              <h3>{budget.projectName}</h3>
+              {specs.development && <p>{specs.development}</p>}
+              <div className="export-meta-row">
+                {budget.client && <span>{t(budget, 'client')}: {budget.client}</span>}
+                {budget.finalClient && <span>{t(budget, 'finalClient')}: {budget.finalClient}</span>}
+                {specs.pieceSummary && <span>{t(budget, 'pieces')}: {specs.pieceSummary}</span>}
+              </div>
+            </div>
+            <div className="export-block export-proposal-block">
+              <p className="eyebrow">{t(budget, 'proposal')}</p>
+              <h3>{isEnglish ? 'Included in this proposal' : 'Incluye la propuesta'}</h3>
               <table>
-                {includedWorks.map((item) => <tbody key={item.id}><tr><td>{item.text}</td></tr></tbody>)}
+                <thead><tr><th>{isEnglish ? 'Stage' : 'Etapa'}</th><th>{isEnglish ? 'Days' : 'Jornadas'}</th></tr></thead>
+                {visibleBallpark.map((row) => (
+                  <tbody key={row.id}><tr><td>{row.name.replace(/^Jornadas\s+/i, '')}</td><td>{row.quantity}</td></tr></tbody>
+                ))}
               </table>
+            </div>
+            {opts.totals && <BallparkFinalPrice budget={budget} totals={totals} />}
+            {opts.notes && <div className="export-notes"><h3>{t(budget, 'notes')}</h3>{visibleConsiderations.map((text, index) => <p key={`${text}-${index}`}>{text}</p>)}</div>}
+            {opts.notes && (specs.paymentTerms || specs.billingInfo) && <div className="export-notes"><h3>{t(budget, 'billing')}</h3>{specs.billingInfo && <p>{specs.billingInfo}</p>}{specs.paymentTerms && <p>{specs.paymentTerms}</p>}</div>}
+          </>
+        ) : (
+          <>
+            {opts.cover && (
+              <div className="export-cover">
+                <div className="export-logo"><img src={budget.brandSettings.logo || `${assetBase}logo.png`} alt="BANI VFX" /></div>
+                <p>{budget.budgetNumber} / {budget.version}</p>
+                <h2>{budget.projectName}</h2>
+                <span>{budget.client || 'Cliente'} - {budget.date}</span>
+              </div>
             )}
-          </div>
+            {opts.projectData && <ExportBlock title={t(budget, 'projectData')} rows={[
+              [t(budget, 'client'), budget.client], [t(budget, 'finalClient'), budget.finalClient], [t(budget, 'currency'), budget.currency], [t(budget, 'type'), budget.budgetMode], [t(budget, 'pieces'), specs.pieceSummary],
+            ]} />}
+            {opts.ballpark && totals.isBallpark && (
+              <div className="export-block">
+                <h3>{specs.commercialTitle || t(budget, 'proposal')}</h3>
+                {specs.development && <p>{specs.development}</p>}
+                {!!includedWorks.length && (
+                  <table>
+                    {includedWorks.map((item) => <tbody key={item.id}><tr><td>{item.text}</td></tr></tbody>)}
+                  </table>
+                )}
+              </div>
+            )}
+            {opts.executiveSummary && (
+              <ExportBlock title={t(budget, 'executiveSummary')} rows={[
+                [t(budget, 'subtotalTeam'), money(totals.subtotalTeam, budget.currency)],
+                [t(budget, 'subtotalBallpark'), money(totals.subtotalBallpark, budget.currency)],
+                [t(budget, 'subtotalDetailed'), money(totals.subtotalDetailed, budget.currency)],
+                [t(budget, 'totalFinal'), money(totals.totalFinal, budget.currency)],
+              ]} highlight />
+            )}
+            {opts.team && <ExportTable title={t(budget, 'team')} rows={visibleTeam.map((r) => [r.name || r.role, r.area, `${r.days} ${isEnglish ? 'days' : 'dias'}`, money(teamSubtotal(r), budget.currency)])} />}
+            {opts.ballpark && totals.isBallpark && <ExportTable title={isEnglish ? 'Days by stage' : 'Jornadas por etapa'} rows={visibleBallpark.map((r) => [r.name, `${r.quantity} ${isEnglish ? 'days' : 'jornadas'}`])} />}
+            {opts.detailed && totals.isDetailed && <ExportTable title={t(budget, 'detailed')} rows={visibleDetailed.map((r) => [r.area, r.taskName, `${r.quantity} ${r.unit}`, money(lineSubtotal(r), budget.currency)])} />}
+            {opts.totals && <TotalsPanel budget={budget} totals={totals} exportMode />}
+            {opts.notes && <div className="export-notes"><h3>{t(budget, 'notes')}</h3>{visibleConsiderations.map((text, index) => <p key={`${text}-${index}`}>{text}</p>)}</div>}
+            {opts.notes && (specs.paymentTerms || specs.billingInfo) && <div className="export-notes"><h3>{t(budget, 'billing')}</h3>{specs.billingInfo && <p>{specs.billingInfo}</p>}{specs.paymentTerms && <p>{specs.paymentTerms}</p>}</div>}
+          </>
         )}
-        {opts.executiveSummary && (
-          <ExportBlock title={t(budget, 'executiveSummary')} rows={isPureBallpark
-            ? [[t(budget, 'subtotalBallpark'), money(totals.subtotalBallpark, budget.currency)], [t(budget, 'totalFinal'), money(totals.totalFinal, budget.currency)]]
-            : [
-              [t(budget, 'subtotalTeam'), money(totals.subtotalTeam, budget.currency)],
-              [t(budget, 'subtotalBallpark'), money(totals.subtotalBallpark, budget.currency)],
-              [t(budget, 'subtotalDetailed'), money(totals.subtotalDetailed, budget.currency)],
-              [t(budget, 'totalFinal'), money(totals.totalFinal, budget.currency)],
-            ]} highlight />
-        )}
-        {!isPureBallpark && opts.team && <ExportTable title={t(budget, 'team')} rows={visibleTeam.map((r) => [r.name || r.role, r.area, `${r.days} ${isEnglish ? 'days' : 'dias'}`, money(teamSubtotal(r), budget.currency)])} />}
-        {opts.ballpark && totals.isBallpark && <ExportTable title={isEnglish ? 'Days by stage' : 'Jornadas por etapa'} rows={visibleBallpark.map((r) => [r.name, `${r.quantity} ${isEnglish ? 'days' : 'jornadas'}`])} />}
-        {!isPureBallpark && opts.detailed && totals.isDetailed && <ExportTable title={t(budget, 'detailed')} rows={visibleDetailed.map((r) => [r.area, r.taskName, `${r.quantity} ${r.unit}`, money(lineSubtotal(r), budget.currency)])} />}
-        {opts.totals && <TotalsPanel budget={budget} totals={totals} exportMode compactBallpark={isPureBallpark} />}
-        {opts.notes && <div className="export-notes"><h3>{t(budget, 'notes')}</h3>{visibleConsiderations.map((text, index) => <p key={`${text}-${index}`}>{text}</p>)}</div>}
-        {opts.notes && (specs.paymentTerms || specs.billingInfo) && <div className="export-notes"><h3>{t(budget, 'billing')}</h3>{specs.billingInfo && <p>{specs.billingInfo}</p>}{specs.paymentTerms && <p>{specs.paymentTerms}</p>}</div>}
         <footer>BANI VFX - Postproduccion, VFX & 3D - www.bani-vfx.com</footer>
       </div>
     </section>
@@ -1480,6 +1518,19 @@ function TotalsPanel({ budget, totals, exportMode = false, compactBallpark = fal
       <Line label="Impuestos" value={money(totals.tax, budget.currency)} />
       <Line label={t(budget, 'totalFinal')} value={money(totals.totalFinal, budget.currency)} strong />
       {budget.budgetMode === 'Ambos' && <Line label="Diferencia ballpark/detallado" value={money(totals.ballparkDetailedDiff, budget.currency)} />}
+    </div>
+  )
+}
+
+function BallparkFinalPrice({ budget, totals }) {
+  return (
+    <div className="export-block export-final-price">
+      {budget.fees.discountEnabled && <Line label="Descuento" value={`-${money(totals.discount, budget.currency)}`} />}
+      {budget.fees.taxEnabled && <Line label="IVA / Impuestos" value={money(totals.tax, budget.currency)} />}
+      <div className="export-final-total">
+        <span>{t(budget, 'totalFinal')}</span>
+        <strong>{money(totals.totalFinal, budget.currency)}</strong>
+      </div>
     </div>
   )
 }

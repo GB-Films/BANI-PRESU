@@ -513,11 +513,11 @@ function BudgetTypeStep({ budget, pricingCatalog, updateBudget }) {
           <strong>Detallado</strong>
           <span>Para desglosar tareas, planos, responsables y cantidades.</span>
         </button>
-        <button className={budget.budgetMode === 'Ballpark' && budget.productionSpecs?.flowType !== 'preset' ? 'selected' : ''} onClick={() => updateBudget({ budgetMode: 'Ballpark', productionSpecs: { ...budget.productionSpecs, flowType: '' } })}>
+        <button className={budget.budgetMode === 'Ballpark' && budget.productionSpecs?.flowType !== 'preset' ? 'selected' : ''} onClick={() => updateBudget({ budgetMode: 'Ballpark', productionSpecs: { ...budget.productionSpecs, flowType: '', presetName: '' }, ballparkItems: budget.ballparkItems.filter((item) => item.sourceType === 'ballparkDayRate') })}>
           <strong>Ballpark</strong>
           <span>Para una estimacion rapida con partidas grandes.</span>
         </button>
-        <button className={budget.productionSpecs?.flowType === 'preset' ? 'selected' : ''} onClick={() => updateBudget({ budgetMode: 'Ballpark', productionSpecs: { ...budget.productionSpecs, flowType: 'preset' } })}>
+        <button className={budget.productionSpecs?.flowType === 'preset' ? 'selected' : ''} onClick={() => updateBudget({ budgetMode: 'Ballpark', productionSpecs: { ...budget.productionSpecs, flowType: 'preset' }, ballparkItems: [] })}>
           <strong>Preset definido</strong>
           <span>Arranca desde partidas precargadas por Admin y ajusta cantidades.</span>
         </button>
@@ -882,7 +882,7 @@ function BallparkSection({ budget, isAdmin, pricingCatalog, updateRow, removeRow
     }
 
     updateBudget({
-      ballparkItems: [...budget.ballparkItems, createBallparkItem(patch)],
+      ballparkItems: [...budget.ballparkItems.filter((item) => item.sourceType === 'ballparkDayRate'), createBallparkItem(patch)],
     })
   }
   const headers = isAdmin

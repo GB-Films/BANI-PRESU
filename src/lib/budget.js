@@ -78,7 +78,7 @@ export const createBudget = () => ({
     createTeamMember({ role: 'VFX Supervisor', area: 'Supervision', dayRate: 650, days: 2 }),
     createTeamMember({ role: 'Compositor', area: 'VFX', dayRate: 440, days: 5 }),
   ],
-  ballparkItems: ballparkPresets.slice(3, 6).map(createBallparkItem),
+  ballparkItems: [],
   detailedTasks: rolePresets.slice(0, 4).map((role) => createDetailedTask({
     area: role.area,
     taskName: role.role,
@@ -154,8 +154,14 @@ export const teamSubtotal = (member) => lineSubtotal(member, 'days', 'dayRate')
 export const calculateBudget = (budget) => {
   const isBallpark = budget.budgetMode === 'Ballpark' || budget.budgetMode === 'Ambos'
   const isDetailed = budget.budgetMode === 'Detallado' || budget.budgetMode === 'Ambos'
-  const subtotalTeam = budget.teamMembers.reduce((sum, item) => sum + teamSubtotal(item), 0)
-  const subtotalBallpark = isBallpark ? budget.ballparkItems.reduce((sum, item) => sum + lineSubtotal(item), 0) : 0
+  const isPureBallpark = budget.budgetMode === 'Ballpark'
+  const hasDayRateBallpark = budget.ballparkItems.some((item) => item.sourceType === 'ballparkDayRate')
+  const shouldUseOnlyDayRateBallpark = isPureBallpark && hasDayRateBallpark && !budget.productionSpecs?.presetName
+  const ballparkRows = shouldUseOnlyDayRateBallpark
+    ? budget.ballparkItems.filter((item) => item.sourceType === 'ballparkDayRate')
+    : budget.ballparkItems
+  const subtotalTeam = isPureBallpark ? 0 : budget.teamMembers.reduce((sum, item) => sum + teamSubtotal(item), 0)
+  const subtotalBallpark = isBallpark ? ballparkRows.reduce((sum, item) => sum + lineSubtotal(item), 0) : 0
   const subtotalDetailed = isDetailed ? budget.detailedTasks.reduce((sum, item) => sum + lineSubtotal(item), 0) : 0
   const base = subtotalTeam + subtotalBallpark + subtotalDetailed
   const productionFee = budget.fees.productionFeeEnabled ? base * Number(budget.fees.productionFeePercent || 0) / 100 : 0

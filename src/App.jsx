@@ -1558,7 +1558,7 @@ function ExportSection({ budget, totals, pricingCatalog, updateNested, exportRef
             <div className="export-ballpark-hero">
               <div>
                 <div className="export-logo"><img src={budget.brandSettings.logo || `${assetBase}logo.png`} alt="BANI VFX" /></div>
-                <p>{budget.productionCompany || 'Gran Berta SRL'} / BANI VFX</p>
+                <p>BANI VFX</p>
               </div>
               {showClientMark && (
                 <div className="export-client-mark">

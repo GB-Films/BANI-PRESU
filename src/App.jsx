@@ -1556,8 +1556,8 @@ function ExportSection({ budget, totals, pricingCatalog, updateNested, exportRef
         {isPureBallpark ? (
           <>
             <div className="export-ballpark-hero">
-              <div>
-                <div className="export-logo"><img src={budget.brandSettings.logo || `${assetBase}logo.png`} alt="BANI VFX" /></div>
+              <div className="export-brand-lockup">
+                <div className="export-logo"><img src={`${assetBase}monograma-negativo-perfil.jpg`} alt="BANI VFX" /></div>
                 <p>BANI VFX</p>
               </div>
               {showClientMark && (

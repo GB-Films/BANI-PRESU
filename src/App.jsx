@@ -238,10 +238,36 @@ function App() {
     return () => window.removeEventListener('storage', syncPricingCatalog)
   }, [])
 
+  useEffect(() => {
+    const warnBeforeUnload = (event) => {
+      if (!pricingDirty) return
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warnBeforeUnload)
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload)
+  }, [pricingDirty])
+
   const handleSavePricingCatalog = () => {
     savePricingCatalog(pricingCatalog)
     setPricingDirty(false)
     setPricingStatus(`Guardado ${new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`)
+  }
+
+  const confirmPricingNavigation = () => {
+    if (!pricingDirty) return true
+    const shouldSave = window.confirm('Tenes cambios sin guardar en Base de costos. Queres guardarlos antes de salir?')
+    if (shouldSave) {
+      handleSavePricingCatalog()
+      return true
+    }
+    return window.confirm('Salir sin guardar cambios?')
+  }
+
+  const goToSection = (nextSection) => {
+    if (section === 'admin' && nextSection !== 'admin' && !confirmPricingNavigation()) return
+    if (nextSection !== 'dashboard') setWizardActive(false)
+    setSection(nextSection)
   }
 
   const handleLogin = (username, password) => {
@@ -264,6 +290,7 @@ function App() {
   }
 
   const handleLogout = () => {
+    if (!confirmPricingNavigation()) return
     clearSession()
     setSession(null)
     setSection('dashboard')
@@ -293,6 +320,7 @@ function App() {
   }
 
   const startNewBudget = () => {
+    if (section === 'admin' && !confirmPricingNavigation()) return
     const fresh = { ...createBudget(), currency: budget?.currency || 'USD' }
     setBudgets((items) => [fresh, ...items])
     setCurrentId(fresh.id)
@@ -302,6 +330,7 @@ function App() {
   }
 
   const openWizardForBudget = (id) => {
+    if (section === 'admin' && !confirmPricingNavigation()) return
     setCurrentId(id)
     setWizardActive(true)
     setWizardStep(0)
@@ -309,6 +338,7 @@ function App() {
   }
 
   const duplicateBudget = (source = budget) => {
+    if (section === 'admin' && !confirmPricingNavigation()) return
     const clone = {
       ...source,
       id: crypto.randomUUID(),
@@ -318,7 +348,7 @@ function App() {
     }
     setBudgets((items) => [clone, ...items])
     setCurrentId(clone.id)
-    setSection('project')
+    goToSection('project')
   }
 
   const deleteBudget = (id) => {
@@ -366,7 +396,7 @@ function App() {
         </div>
         <nav>
           {visibleNavItems.map(([id, label]) => (
-            <button key={id} className={section === id ? 'active' : ''} onClick={() => { if (id !== 'dashboard') setWizardActive(false); setSection(id) }}>
+            <button key={id} className={section === id ? 'active' : ''} onClick={() => goToSection(id)}>
               {label}
             </button>
           ))}
@@ -408,7 +438,7 @@ function App() {
             exportPdf={exportPdf}
           />
         )}
-        {!wizardActive && section === 'dashboard' && <Dashboard budgets={budgets} currentId={currentId} setCurrentId={setCurrentId} deleteBudget={deleteBudget} duplicateBudget={duplicateBudget} setSection={setSection} onNewBudget={startNewBudget} onOpenWizard={openWizardForBudget} isAdmin={false} />}
+        {!wizardActive && section === 'dashboard' && <Dashboard budgets={budgets} currentId={currentId} setCurrentId={setCurrentId} deleteBudget={deleteBudget} duplicateBudget={duplicateBudget} setSection={goToSection} onNewBudget={startNewBudget} onOpenWizard={openWizardForBudget} isAdmin={false} />}
         {!wizardActive && isAdmin && section === 'brand' && <BrandSection budget={budget} updateNested={updateNested} />}
         {!wizardActive && isAdmin && section === 'admin' && <AdminSection pricingCatalog={pricingCatalog} setPricingCatalog={setPricingCatalog} markDirty={() => setPricingDirty(true)} onSave={handleSavePricingCatalog} pricingDirty={pricingDirty} pricingStatus={pricingStatus} />}
       </main>

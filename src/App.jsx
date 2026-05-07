@@ -34,7 +34,7 @@ import {
   money,
   teamSubtotal,
 } from './lib/budget'
-import { clearSession, loadBudgets, loadCurrentId, loadPricingCatalog, loadSession, saveBudgets, saveCurrentId, savePricingCatalog, saveSession } from './lib/storage'
+import { clearSession, loadBudgets, loadCurrentId, loadSession, saveBudgets, saveCurrentId, saveSession } from './lib/storage'
 
 const navItems = [
   ['dashboard', 'Presupuestos'],
@@ -182,7 +182,7 @@ function App() {
   const [wizardStep, setWizardStep] = useState(0)
   const [session, setSession] = useState(() => loadSession())
   const [loginError, setLoginError] = useState('')
-  const [pricingCatalog, setPricingCatalog] = useState(() => mergePricingCatalog(loadPricingCatalog(defaultPricingCatalog)))
+  const [pricingCatalog, setPricingCatalog] = useState(() => mergePricingCatalog(defaultPricingCatalog))
   const exportRef = useRef(null)
 
   const budget = budgets.find((item) => item.id === currentId) || budgets[0]
@@ -205,8 +205,17 @@ function App() {
   }, [isAdmin, section, wizardActive])
 
   useEffect(() => {
-    savePricingCatalog(pricingCatalog)
-  }, [pricingCatalog])
+    let cancelled = false
+    fetch(`${assetBase}pricing-catalog.json?ts=${Date.now()}`, { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((catalog) => {
+        if (!cancelled && catalog) setPricingCatalog(mergePricingCatalog(catalog))
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleLogin = (username, password) => {
     const normalized = username.trim().toLowerCase()
@@ -1440,7 +1449,8 @@ const roleSections = ['Gestion de proyecto', 'POST', 'VFX', '3D']
 
 function getRoleSection(area = '') {
   const normalized = area.toLowerCase()
-  if (normalized.includes('gestion') || normalized.includes('produccion') || normalized.includes('coordinacion') || normalized.includes('producer') || normalized.includes('coordination')) return 'Gestion de proyecto'
+  if (normalized.includes('post') || normalized.includes('edicion') || normalized.includes('color') || normalized.includes('sonido')) return 'POST'
+  if (normalized.includes('gestion') || normalized === 'produccion' || normalized.includes('coordinacion') || normalized.includes('producer') || normalized.includes('coordination')) return 'Gestion de proyecto'
   if (normalized.includes('3d')) return '3D'
   if (normalized.includes('vfx') || normalized.includes('motion') || normalized.includes('supervision')) return 'VFX'
   return 'POST'

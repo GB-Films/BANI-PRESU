@@ -185,6 +185,9 @@ function App() {
   const [pricingCatalog, setPricingCatalog] = useState(() => mergePricingCatalog(loadPricingCatalog(null) || defaultPricingCatalog))
   const [pricingDirty, setPricingDirty] = useState(false)
   const [pricingStatus, setPricingStatus] = useState(() => loadPricingCatalog(null) ? 'Valores guardados' : 'Valores base publicados')
+  const [pricingPrompt, setPricingPrompt] = useState(null)
+  const pricingPromptResolver = useRef(null)
+  const savedPricingCatalog = useRef(mergePricingCatalog(loadPricingCatalog(null) || defaultPricingCatalog))
   const exportRef = useRef(null)
 
   const budget = budgets.find((item) => item.id === currentId) || budgets[0]
@@ -213,7 +216,9 @@ function App() {
       .then((response) => (response.ok ? response.json() : null))
       .then((catalog) => {
         if (!cancelled && catalog) {
-          setPricingCatalog(mergePricingCatalog(catalog))
+          const merged = mergePricingCatalog(catalog)
+          setPricingCatalog(merged)
+          savedPricingCatalog.current = merged
           setPricingStatus('Valores base publicados')
         }
       })
@@ -227,7 +232,9 @@ function App() {
     const syncPricingCatalog = (event) => {
       if (event.key !== PRICING_KEY || !event.newValue) return
       try {
-        setPricingCatalog(mergePricingCatalog(JSON.parse(event.newValue)))
+        const merged = mergePricingCatalog(JSON.parse(event.newValue))
+        setPricingCatalog(merged)
+        savedPricingCatalog.current = merged
         setPricingDirty(false)
         setPricingStatus('Valores sincronizados')
       } catch {
@@ -250,22 +257,43 @@ function App() {
 
   const handleSavePricingCatalog = () => {
     savePricingCatalog(pricingCatalog)
+    savedPricingCatalog.current = pricingCatalog
     setPricingDirty(false)
     setPricingStatus(`Guardado ${new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`)
   }
 
-  const confirmPricingNavigation = () => {
+  const resolvePricingPrompt = (result) => {
+    pricingPromptResolver.current?.(result)
+    pricingPromptResolver.current = null
+    setPricingPrompt(null)
+  }
+
+  const requestPricingPrompt = () => new Promise((resolve) => {
+    pricingPromptResolver.current = resolve
+    setPricingPrompt({
+      title: 'Cambios sin guardar',
+      body: 'Aceptar guarda los cambios y continua. Cancelar descarta los ajustes nuevos, vuelve a los valores anteriores y continua.',
+    })
+  })
+
+  const confirmPricingNavigation = async () => {
     if (!pricingDirty) return true
-    const shouldSave = window.confirm('Tenes cambios sin guardar en Base de costos. Queres guardarlos antes de salir?')
-    if (shouldSave) {
+    const action = await requestPricingPrompt()
+    if (action === 'save') {
       handleSavePricingCatalog()
       return true
     }
-    return window.confirm('Salir sin guardar cambios?')
+    if (action === 'discard') {
+      setPricingCatalog(savedPricingCatalog.current)
+      setPricingDirty(false)
+      setPricingStatus('Cambios descartados')
+      return true
+    }
+    return false
   }
 
-  const goToSection = (nextSection) => {
-    if (section === 'admin' && nextSection !== 'admin' && !confirmPricingNavigation()) return
+  const goToSection = async (nextSection) => {
+    if (section === 'admin' && nextSection !== 'admin' && !(await confirmPricingNavigation())) return
     if (nextSection !== 'dashboard') setWizardActive(false)
     setSection(nextSection)
   }
@@ -289,8 +317,8 @@ function App() {
     setSection('dashboard')
   }
 
-  const handleLogout = () => {
-    if (!confirmPricingNavigation()) return
+  const handleLogout = async () => {
+    if (!(await confirmPricingNavigation())) return
     clearSession()
     setSession(null)
     setSection('dashboard')
@@ -319,8 +347,8 @@ function App() {
     updateBudget({ [collection]: budget[collection].filter((row) => row.id !== id) })
   }
 
-  const startNewBudget = () => {
-    if (section === 'admin' && !confirmPricingNavigation()) return
+  const startNewBudget = async () => {
+    if (section === 'admin' && !(await confirmPricingNavigation())) return
     const fresh = { ...createBudget(), currency: budget?.currency || 'USD' }
     setBudgets((items) => [fresh, ...items])
     setCurrentId(fresh.id)
@@ -329,16 +357,16 @@ function App() {
     setSection('dashboard')
   }
 
-  const openWizardForBudget = (id) => {
-    if (section === 'admin' && !confirmPricingNavigation()) return
+  const openWizardForBudget = async (id) => {
+    if (section === 'admin' && !(await confirmPricingNavigation())) return
     setCurrentId(id)
     setWizardActive(true)
     setWizardStep(0)
     setSection('dashboard')
   }
 
-  const duplicateBudget = (source = budget) => {
-    if (section === 'admin' && !confirmPricingNavigation()) return
+  const duplicateBudget = async (source = budget) => {
+    if (section === 'admin' && !(await confirmPricingNavigation())) return
     const clone = {
       ...source,
       id: crypto.randomUUID(),
@@ -385,63 +413,82 @@ function App() {
   }
 
   return (
-    <div className="app-shell" style={{ '--brand': budget.brandSettings.primaryColor, '--accent': budget.brandSettings.secondaryColor }}>
-      <aside className="sidebar">
-        <div className="brand-lockup">
-          <img src={budget.brandSettings.logo || `${assetBase}logo.png`} alt="BANI VFX" />
-          <div>
-            <strong>LAB</strong>
-            <span>Layout, Assets & Budget</span>
+    <>
+      <div className="app-shell" style={{ '--brand': budget.brandSettings.primaryColor, '--accent': budget.brandSettings.secondaryColor }}>
+        <aside className="sidebar">
+          <div className="brand-lockup">
+            <img src={budget.brandSettings.logo || `${assetBase}logo.png`} alt="BANI VFX" />
+            <div>
+              <strong>LAB</strong>
+              <span>Layout, Assets & Budget</span>
+            </div>
           </div>
+          <nav>
+            {visibleNavItems.map(([id, label]) => (
+              <button key={id} className={section === id ? 'active' : ''} onClick={() => goToSection(id)}>
+                {label}
+              </button>
+            ))}
+          </nav>
+          {wizardActive && <WizardStepNav wizardStep={wizardStep} setWizardStep={setWizardStep} />}
+          {(wizardActive || section === 'dashboard') && (
+            <div className="side-total">
+              <span>Total final</span>
+              <strong>{money(totals.totalFinal, budget.currency)}</strong>
+            </div>
+          )}
+        </aside>
+
+        <main>
+          <header className="topbar">
+            <div>
+              <p className="eyebrow">{budget.budgetNumber} / {budget.version}</p>
+              <h1>{budget.projectName}</h1>
+            </div>
+            <div className="toolbar">
+              <SessionPanel session={session} onLogout={handleLogout} />
+            </div>
+          </header>
+
+          {wizardActive && (
+            <ProducerWizard
+              budget={budget}
+              totals={totals}
+              wizardStep={wizardStep}
+              setWizardStep={setWizardStep}
+              setWizardActive={setWizardActive}
+              pricingCatalog={pricingCatalog}
+              updateBudget={updateBudget}
+              updateNested={updateNested}
+              updateRow={updateRow}
+              removeRow={removeRow}
+              exportRef={exportRef}
+              exportImage={exportImage}
+              exportPdf={exportPdf}
+            />
+          )}
+          {!wizardActive && section === 'dashboard' && <Dashboard budgets={budgets} currentId={currentId} setCurrentId={setCurrentId} deleteBudget={deleteBudget} duplicateBudget={duplicateBudget} setSection={goToSection} onNewBudget={startNewBudget} onOpenWizard={openWizardForBudget} isAdmin={false} />}
+          {!wizardActive && isAdmin && section === 'brand' && <BrandSection budget={budget} updateNested={updateNested} />}
+          {!wizardActive && isAdmin && section === 'admin' && <AdminSection pricingCatalog={pricingCatalog} setPricingCatalog={setPricingCatalog} markDirty={() => setPricingDirty(true)} onSave={handleSavePricingCatalog} pricingDirty={pricingDirty} pricingStatus={pricingStatus} />}
+        </main>
+      </div>
+      {pricingPrompt && <PricingPromptModal prompt={pricingPrompt} onSave={() => resolvePricingPrompt('save')} onDiscard={() => resolvePricingPrompt('discard')} />}
+    </>
+  )
+}
+
+function PricingPromptModal({ prompt, onSave, onDiscard }) {
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <div className="bani-modal" role="dialog" aria-modal="true" aria-labelledby="pricing-prompt-title">
+        <p className="eyebrow">Base de costos</p>
+        <h2 id="pricing-prompt-title">{prompt.title}</h2>
+        <p>{prompt.body}</p>
+        <div className="modal-actions">
+          <button className="primary" onClick={onSave}>Aceptar</button>
+          <button className="ghost" onClick={onDiscard}>Cancelar</button>
         </div>
-        <nav>
-          {visibleNavItems.map(([id, label]) => (
-            <button key={id} className={section === id ? 'active' : ''} onClick={() => goToSection(id)}>
-              {label}
-            </button>
-          ))}
-        </nav>
-        {wizardActive && <WizardStepNav wizardStep={wizardStep} setWizardStep={setWizardStep} />}
-        {(wizardActive || section === 'dashboard') && (
-          <div className="side-total">
-            <span>Total final</span>
-            <strong>{money(totals.totalFinal, budget.currency)}</strong>
-          </div>
-        )}
-      </aside>
-
-      <main>
-        <header className="topbar">
-          <div>
-            <p className="eyebrow">{budget.budgetNumber} / {budget.version}</p>
-            <h1>{budget.projectName}</h1>
-          </div>
-          <div className="toolbar">
-            <SessionPanel session={session} onLogout={handleLogout} />
-          </div>
-        </header>
-
-        {wizardActive && (
-          <ProducerWizard
-            budget={budget}
-            totals={totals}
-            wizardStep={wizardStep}
-            setWizardStep={setWizardStep}
-            setWizardActive={setWizardActive}
-            pricingCatalog={pricingCatalog}
-            updateBudget={updateBudget}
-            updateNested={updateNested}
-            updateRow={updateRow}
-            removeRow={removeRow}
-            exportRef={exportRef}
-            exportImage={exportImage}
-            exportPdf={exportPdf}
-          />
-        )}
-        {!wizardActive && section === 'dashboard' && <Dashboard budgets={budgets} currentId={currentId} setCurrentId={setCurrentId} deleteBudget={deleteBudget} duplicateBudget={duplicateBudget} setSection={goToSection} onNewBudget={startNewBudget} onOpenWizard={openWizardForBudget} isAdmin={false} />}
-        {!wizardActive && isAdmin && section === 'brand' && <BrandSection budget={budget} updateNested={updateNested} />}
-        {!wizardActive && isAdmin && section === 'admin' && <AdminSection pricingCatalog={pricingCatalog} setPricingCatalog={setPricingCatalog} markDirty={() => setPricingDirty(true)} onSave={handleSavePricingCatalog} pricingDirty={pricingDirty} pricingStatus={pricingStatus} />}
-      </main>
+      </div>
     </div>
   )
 }

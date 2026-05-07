@@ -1112,6 +1112,45 @@ h3 {
   opacity: 0.45;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.bani-modal {
+  width: min(520px, 100%);
+  padding: 26px;
+  border: 1px solid rgba(230, 30, 110, 0.45);
+  border-radius: var(--vault-radius);
+  background: linear-gradient(180deg, rgba(24, 24, 24, 0.98), rgba(10, 10, 10, 0.98));
+  box-shadow: 0 24px 90px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+}
+
+.bani-modal h2 {
+  margin: 4px 0 12px;
+  color: #fff;
+  font-size: 30px;
+  font-style: italic;
+}
+
+.bani-modal p:not(.eyebrow) {
+  color: #a8a8a8;
+  line-height: 1.55;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
 .considerations-panel,
 .billing-panel {
   display: grid;

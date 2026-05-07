@@ -923,6 +923,9 @@ function Dashboard({ budgets, currentId, setCurrentId, deleteBudget, duplicateBu
 }
 
 function ProjectSection({ budget, updateBudget, updateNested, showBudgetType = true, producerMode = false }) {
+  const specs = budget.productionSpecs || {}
+  const updateSpec = (patch) => updateNested('productionSpecs', patch)
+
   const setClientLogo = (file) => {
     if (!file) {
       updateBudget({ clientLogo: '' })
@@ -955,6 +958,7 @@ function ProjectSection({ budget, updateBudget, updateNested, showBudgetType = t
         <Select label={t(budget, 'language')} value={getLanguage(budget)} options={['es', 'en']} labels={{ es: t(budget, 'spanish'), en: t(budget, 'english') }} onChange={(v) => updateBudget({ language: v })} />
         {showBudgetType && <Select label="Tipo" value={budget.budgetMode} options={['Ballpark', 'Detallado', 'Ambos']} onChange={(v) => updateBudget({ budgetMode: v })} />}
       </div>
+      <Textarea label="Descripcion del proyecto" value={specs.projectDescription || ''} onChange={(v) => updateSpec({ projectDescription: v })} />
     </section>
   )
 }
@@ -1558,13 +1562,19 @@ function ExportSection({ budget, totals, updateNested, exportRef, exportImage, e
             <div className="export-block export-project-intro">
               <p>{budget.budgetNumber} / {budget.version} - {budget.date}</p>
               <h3>{budget.projectName}</h3>
-              {specs.development && <p>{specs.development}</p>}
+              {!specs.projectDescription && specs.development && <p>{specs.development}</p>}
               <div className="export-meta-row">
                 {budget.client && <span>{t(budget, 'client')}: {budget.client}</span>}
                 {budget.finalClient && <span>{t(budget, 'finalClient')}: {budget.finalClient}</span>}
                 {specs.pieceSummary && <span>{t(budget, 'pieces')}: {specs.pieceSummary}</span>}
               </div>
             </div>
+            {specs.projectDescription && (
+              <div className="export-block export-project-description">
+                <p className="eyebrow">{isEnglish ? 'Project description' : 'Descripcion del proyecto'}</p>
+                <p>{specs.projectDescription}</p>
+              </div>
+            )}
             <div className="export-block export-proposal-block">
               <p className="eyebrow">{t(budget, 'proposal')}</p>
               <h3>{isEnglish ? 'Included in this proposal' : 'Incluye la propuesta'}</h3>

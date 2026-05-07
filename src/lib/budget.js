@@ -68,6 +68,7 @@ export const createBudget = () => ({
     flowType: '',
     commercialTitle: '',
     development: '',
+    projectDescription: '',
     includedWorks: [
       { id: 'modelado-3d', text: 'Modelado 3D realista', included: false },
       { id: 'trackeo-3d', text: 'Trackeo 3D', included: false },

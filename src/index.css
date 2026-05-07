@@ -1525,6 +1525,12 @@ h3 {
   letter-spacing: 0.08em;
 }
 
+.export-project-description p:not(.eyebrow) {
+  color: #c7c7c7;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
 .export-proposal-block {
   border-color: rgba(230, 30, 110, 0.42);
   background: rgba(230, 30, 110, 0.055);

@@ -680,6 +680,144 @@ h3 {
   font-size: 11px;
 }
 
+.calendar-builder {
+  display: grid;
+  gap: 18px;
+}
+
+.calendar-edit-week {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--vault-radius);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.calendar-edit-week-header {
+  padding: 9px 12px;
+  background: var(--bani-pink);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 950;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.calendar-edit-grid {
+  display: grid;
+  grid-template-columns: 116px repeat(5, minmax(150px, 1fr));
+}
+
+.calendar-edit-grid > strong,
+.calendar-edit-grid > b {
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  color: #d6d6d6;
+  text-transform: uppercase;
+}
+
+.calendar-edit-grid > strong {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.calendar-edit-grid > b {
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 12px;
+}
+
+.calendar-edit-grid textarea {
+  min-height: 94px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  resize: vertical;
+  white-space: pre-wrap;
+}
+
+.calendar-export-page {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 1500px;
+  padding: 24px;
+  background: #fff;
+  color: #000;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.calendar-export-page h2 {
+  margin: 0 0 34px;
+  color: #000;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 28px;
+  font-style: normal;
+  text-transform: none;
+}
+
+.calendar-export-week {
+  margin-bottom: 0;
+}
+
+.calendar-export-days,
+.calendar-export-grid {
+  display: grid;
+  grid-template-columns: 135px repeat(5, 1fr);
+}
+
+.calendar-export-days strong {
+  padding: 8px;
+  border-bottom: 1px solid #111;
+  font-size: 17px;
+  text-align: center;
+}
+
+.calendar-export-brand {
+  padding: 8px;
+  background: #e61e6e;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.calendar-export-grid > span,
+.calendar-export-grid > b,
+.calendar-export-grid > strong,
+.calendar-export-grid > p {
+  min-height: 50px;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid #bdbdbd;
+  background: #d7d7d7;
+  color: #000;
+  font-size: 14px;
+  text-align: center;
+  white-space: pre-line;
+}
+
+.calendar-export-grid > strong {
+  display: grid;
+  place-items: center;
+  background: #555;
+  color: #fff;
+  font-weight: 800;
+}
+
+.calendar-export-grid > b {
+  min-height: auto;
+  background: #fff;
+  font-size: 19px;
+  text-align: right;
+}
+
 .table-wrap {
   overflow-x: auto;
 }

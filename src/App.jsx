@@ -610,7 +610,7 @@ function ProducerWizard({ budget, totals, wizardStep, setWizardStep, setWizardAc
       {wizardStep === 1 && <BudgetTypeStep budget={budget} pricingCatalog={pricingCatalog} updateBudget={updateBudget} />}
       {wizardStep === 2 && <ProjectBreakdownStep budget={budget} pricingCatalog={pricingCatalog} updateNested={updateNested} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
       {wizardStep === 3 && <SummarySection budget={budget} totals={totals} updateNested={updateNested} isAdmin={false} />}
-      {wizardStep === 4 && <CalendarSection budget={budget} updateBudget={updateBudget} />}
+      {wizardStep === 4 && <CalendarPlannerSection budget={budget} updateBudget={updateBudget} />}
       {wizardStep === 5 && <ExportSection budget={budget} totals={totals} updateNested={updateNested} exportRef={exportRef} exportImage={exportImage} exportPdf={exportPdf} />}
 
       <div className="wizard-footer">
@@ -1254,6 +1254,179 @@ function CalendarSection({ budget, updateBudget }) {
         </div>
       )}
     </section>
+  )
+}
+
+const calendarAreaOptions = ['POST', 'VFX', '3D', 'ENTREGAS']
+const calendarWeekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+
+const toDateInputValue = (date) => date.toISOString().slice(0, 10)
+
+function getMonday(value) {
+  const base = value ? new Date(`${value}T00:00:00`) : new Date()
+  const day = base.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  base.setDate(base.getDate() + diff)
+  return base
+}
+
+function buildCalendarWeeks(startDate, weeks = 2) {
+  const monday = getMonday(startDate)
+  return Array.from({ length: Number(weeks || 1) }, (_, weekIndex) => (
+    Array.from({ length: 5 }, (_, dayIndex) => {
+      const date = new Date(monday)
+      date.setDate(monday.getDate() + (weekIndex * 7) + dayIndex)
+      return {
+        label: calendarWeekDays[dayIndex],
+        day: date.getDate(),
+        key: toDateInputValue(date),
+      }
+    })
+  ))
+}
+
+function monthNameFromDate(value) {
+  const date = value ? new Date(`${value}T00:00:00`) : new Date()
+  return date.toLocaleDateString('es-AR', { month: 'long' }).toUpperCase()
+}
+
+function CalendarPlannerSection({ budget, updateBudget }) {
+  const calendarRef = useRef(null)
+  const calendarItems = budget.calendarItems?.length ? budget.calendarItems : []
+  const settings = {
+    title: budget.calendarSettings?.title || budget.projectName,
+    startDate: budget.calendarSettings?.startDate || budget.date || new Date().toISOString().slice(0, 10),
+    weeks: Number(budget.calendarSettings?.weeks || 2),
+    areas: budget.calendarSettings?.areas?.length ? budget.calendarSettings.areas : calendarAreaOptions,
+  }
+  const weeks = buildCalendarWeeks(settings.startDate, settings.weeks)
+  const updateSettings = (patch) => updateBudget({ calendarSettings: { ...settings, ...patch } })
+  const findCell = (area, date) => calendarItems.find((item) => item.area === area && item.date === date)
+  const updateCell = (area, date, task) => {
+    const existing = findCell(area, date)
+    if (existing) {
+      updateBudget({
+        calendarItems: calendarItems.map((item) => (item.id === existing.id ? { ...item, task, included: Boolean(task.trim()) } : item)),
+      })
+      return
+    }
+    updateBudget({
+      calendarItems: [...calendarItems, createCalendarItem({ area, date, task, included: Boolean(task.trim()) })],
+    })
+  }
+  const fillFromBudget = () => {
+    const firstWeek = weeks[0] || []
+    const firstDay = firstWeek[0]?.key
+    const secondDay = firstWeek[1]?.key
+    const thirdDay = firstWeek[2]?.key
+    const fourthDay = firstWeek[3]?.key
+    const lastDay = weeks.at(-1)?.[4]?.key
+    const generated = [
+      firstDay && createCalendarItem({ area: 'POST', date: firstDay, task: 'Descarga de material\nOrganizacion del proyecto' }),
+      secondDay && createCalendarItem({ area: 'POST', date: secondDay, task: budget.budgetMode === 'Ballpark' ? 'Montaje\nRevision interna' : 'Armado offline\nOrganizacion de entregables' }),
+      thirdDay && createCalendarItem({ area: 'VFX', date: thirdDay, task: 'Composicion\nTracking de la escena' }),
+      thirdDay && createCalendarItem({ area: '3D', date: thirdDay, task: 'Layout 3D\nModelado de elementos' }),
+      fourthDay && createCalendarItem({ area: 'ENTREGAS', date: fourthDay, task: 'Revision interna / envio al cliente' }),
+      lastDay && createCalendarItem({ area: 'ENTREGAS', date: lastDay, task: 'Entrega final' }),
+    ].filter(Boolean)
+    updateBudget({ calendarItems: generated })
+  }
+  const clearCalendar = () => {
+    if (!confirmDelete('el calendario completo')) return
+    updateBudget({ calendarItems: [] })
+  }
+  const exportCalendarImage = async () => {
+    const canvas = await html2canvas(calendarRef.current, { backgroundColor: '#ffffff', scale: 2 })
+    const link = document.createElement('a')
+    link.download = `${budget.budgetNumber}-calendario.png`
+    link.href = canvas.toDataURL('image/png')
+    link.click()
+  }
+  const exportCalendarPdf = async () => {
+    const canvas = await html2canvas(calendarRef.current, { backgroundColor: '#ffffff', scale: 2 })
+    const img = canvas.toDataURL('image/png')
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas.width, canvas.height] })
+    pdf.addImage(img, 'PNG', 0, 0, canvas.width, canvas.height)
+    pdf.save(`${budget.budgetNumber}-calendario.pdf`)
+  }
+
+  return (
+    <section className="panel calendar-panel">
+      <div className="admin-block-header">
+        <SectionTitle icon={<CalendarDays />} eyebrow="Cronograma del proyecto" title="Calendario personalizado" />
+        <div className="inline-actions">
+          <button className="primary" onClick={exportCalendarPdf}><FileText size={16} /> PDF</button>
+          <button className="primary" onClick={exportCalendarImage}><FileImage size={16} /> PNG</button>
+        </div>
+      </div>
+      <p className="muted-copy">Defini fecha de inicio y semanas. La grilla se arma sola por dias habiles; vos completas las tareas por area.</p>
+      <div className="form-grid">
+        <Input label="Titulo calendario" value={settings.title} onChange={(v) => updateSettings({ title: v })} />
+        <Input type="date" label="Semana de inicio" value={settings.startDate} onChange={(v) => updateSettings({ startDate: v })} />
+        <Input type="number" label="Cantidad de semanas" value={settings.weeks} onChange={(v) => updateSettings({ weeks: Math.max(1, Math.min(8, Number(v || 1))) })} />
+      </div>
+      <div className="inline-actions">
+        <button className="ghost" onClick={fillFromBudget}><Sparkles size={16} /> Armar base automatica</button>
+        <button className="ghost" onClick={clearCalendar}><Trash2 size={16} /> Limpiar calendario</button>
+      </div>
+      <div className="calendar-builder">
+        {weeks.map((week, weekIndex) => (
+          <div className="calendar-edit-week" key={`edit-week-${weekIndex}`}>
+            <div className="calendar-edit-week-header">Semana {weekIndex + 1} / BANI VFX</div>
+            <div className="calendar-edit-grid">
+              <div />
+              {week.map((day) => <strong key={day.key}>{day.label}<span>{day.day}</span></strong>)}
+              {settings.areas.map((area) => (
+                <Fragment key={`edit-${weekIndex}-${area}`}>
+                  <b>{area}</b>
+                  {week.map((day) => {
+                    const cell = findCell(area, day.key)
+                    return (
+                      <textarea
+                        key={`${area}-${day.key}`}
+                        value={cell?.task || ''}
+                        onChange={(event) => updateCell(area, day.key, event.target.value)}
+                        placeholder="-"
+                      />
+                    )
+                  })}
+                </Fragment>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <CalendarExportView budget={budget} settings={settings} weeks={weeks} calendarItems={calendarItems} exportRef={calendarRef} />
+    </section>
+  )
+}
+
+function CalendarExportView({ budget, settings, weeks, calendarItems, exportRef }) {
+  const taskFor = (area, date) => calendarItems.find((item) => item.included && item.area === area && item.date === date)?.task || '-'
+
+  return (
+    <div className="calendar-export-page" ref={exportRef}>
+      <h2>{settings.title || budget.projectName} - {monthNameFromDate(settings.startDate)}</h2>
+      {weeks.map((week, weekIndex) => (
+        <div className="calendar-export-week" key={`export-week-${weekIndex}`}>
+          <div className="calendar-export-days">
+            <span />
+            {week.map((day) => <strong key={day.key}>{day.label}</strong>)}
+          </div>
+          <div className="calendar-export-brand">BANI VFX</div>
+          <div className="calendar-export-grid">
+            <span />
+            {week.map((day) => <b key={day.key}>{day.day}</b>)}
+            {settings.areas.map((area) => (
+              <Fragment key={`export-${weekIndex}-${area}`}>
+                <strong>{area}</strong>
+                {week.map((day) => <p key={`${area}-${day.key}`}>{taskFor(area, day.key)}</p>)}
+              </Fragment>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 

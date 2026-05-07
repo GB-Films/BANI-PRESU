@@ -41,11 +41,9 @@ export const createDetailedTask = (preset = {}) => ({
 
 export const createCalendarItem = (preset = {}) => ({
   id: uid(),
-  phase: preset.phase ?? 'Nueva etapa',
-  owner: preset.owner ?? '',
-  startDate: preset.startDate ?? '',
-  endDate: preset.endDate ?? '',
-  status: preset.status ?? 'Pendiente',
+  area: preset.area ?? 'POST',
+  date: preset.date ?? '',
+  task: preset.task ?? preset.phase ?? '',
   notes: preset.notes ?? '',
   included: preset.included ?? true,
 })
@@ -87,18 +85,18 @@ export const createBudget = () => ({
     deliveryFormats: '',
     complexity: 'Media',
   },
+  calendarSettings: {
+    title: '',
+    startDate: new Date().toISOString().slice(0, 10),
+    weeks: 2,
+    areas: ['POST', 'VFX', '3D', 'ENTREGAS'],
+  },
   teamMembers: [
     createTeamMember({ role: 'VFX Supervisor', area: 'Supervision', dayRate: 650, days: 2 }),
     createTeamMember({ role: 'Compositor', area: 'VFX', dayRate: 440, days: 5 }),
   ],
   ballparkItems: [],
-  calendarItems: [
-    createCalendarItem({ phase: 'Kickoff / materiales', status: 'Pendiente' }),
-    createCalendarItem({ phase: 'Produccion / post', status: 'Pendiente' }),
-    createCalendarItem({ phase: 'Revision cliente', status: 'Pendiente' }),
-    createCalendarItem({ phase: 'Ajustes finales', status: 'Pendiente' }),
-    createCalendarItem({ phase: 'Entrega', status: 'Pendiente' }),
-  ],
+  calendarItems: [],
   detailedTasks: rolePresets.slice(0, 4).map((role) => createDetailedTask({
     area: role.area,
     taskName: role.role,

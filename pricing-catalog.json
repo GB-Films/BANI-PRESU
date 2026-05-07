@@ -31,6 +31,7 @@
     { "key": "sonido", "name": "Sonido", "description": "Jornadas de sonido", "unitValue": 360 },
     { "key": "color", "name": "Color", "description": "Jornadas de color", "unitValue": 520 },
     { "key": "vfx", "name": "VFX", "description": "Jornadas de VFX", "unitValue": 440 },
-    { "key": "3d", "name": "3D", "description": "Jornadas de 3D", "unitValue": 430 }
+    { "key": "3d", "name": "3D", "description": "Jornadas de 3D", "unitValue": 430 },
+    { "key": "ia", "name": "IA", "description": "Jornadas de IA", "unitValue": 440 }
   ]
 }

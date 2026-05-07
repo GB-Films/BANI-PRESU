@@ -56,10 +56,14 @@ const defaultPricingCatalog = {
     { key: 'color', name: 'Color', description: 'Jornadas de color', unitValue: 520 },
     { key: 'vfx', name: 'VFX', description: 'Jornadas de VFX', unitValue: 440 },
     { key: '3d', name: '3D', description: 'Jornadas de 3D', unitValue: 430 },
+    { key: 'ia', name: 'IA', description: 'Jornadas de IA', unitValue: 440 },
   ],
 }
 const mergeDayRates = (rates = []) => {
-  return rates.length ? rates : defaultPricingCatalog.ballparkDayRates
+  if (!rates.length) return defaultPricingCatalog.ballparkDayRates
+  const existingKeys = new Set(rates.map((rate) => String(rate.key || '').toLowerCase()))
+  const missingDefaults = defaultPricingCatalog.ballparkDayRates.filter((rate) => !existingKeys.has(rate.key))
+  return [...rates, ...missingDefaults]
 }
 
 const mergeRoles = (roles = []) => {

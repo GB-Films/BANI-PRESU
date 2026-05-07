@@ -3,6 +3,7 @@ import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import {
   BarChart3,
+  CalendarDays,
   Copy,
   Download,
   Edit3,
@@ -27,6 +28,7 @@ import {
   chartDataFromTotals,
   createBallparkItem,
   createBudget,
+  createCalendarItem,
   createDetailedTask,
   createTeamMember,
   groupTotals,
@@ -586,6 +588,7 @@ const wizardSteps = [
   'Tipo',
   'Desglose',
   'Resumen',
+  'Calendario',
   'Export',
 ]
 
@@ -607,7 +610,8 @@ function ProducerWizard({ budget, totals, wizardStep, setWizardStep, setWizardAc
       {wizardStep === 1 && <BudgetTypeStep budget={budget} pricingCatalog={pricingCatalog} updateBudget={updateBudget} />}
       {wizardStep === 2 && <ProjectBreakdownStep budget={budget} pricingCatalog={pricingCatalog} updateNested={updateNested} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
       {wizardStep === 3 && <SummarySection budget={budget} totals={totals} updateNested={updateNested} isAdmin={false} />}
-      {wizardStep === 4 && <ExportSection budget={budget} totals={totals} updateNested={updateNested} exportRef={exportRef} exportImage={exportImage} exportPdf={exportPdf} />}
+      {wizardStep === 4 && <CalendarSection budget={budget} updateBudget={updateBudget} />}
+      {wizardStep === 5 && <ExportSection budget={budget} totals={totals} updateNested={updateNested} exportRef={exportRef} exportImage={exportImage} exportPdf={exportPdf} />}
 
       <div className="wizard-footer">
         <button className="ghost" onClick={goBack} disabled={wizardStep === 0}>Anterior</button>
@@ -1178,6 +1182,78 @@ function BillingPanel({ budget, updateNested }) {
         <Textarea label="Condicion de pago" value={specs.paymentTerms || ''} onChange={(v) => updateSpec({ paymentTerms: v })} />
       </div>
     </div>
+  )
+}
+
+function CalendarSection({ budget, updateBudget }) {
+  const calendarItems = budget.calendarItems?.length ? budget.calendarItems : []
+  const updateCalendarRow = (id, patch) => {
+    updateBudget({
+      calendarItems: calendarItems.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    })
+  }
+  const addCalendarRow = (preset = {}) => {
+    updateBudget({ calendarItems: [...calendarItems, createCalendarItem(preset)] })
+  }
+  const removeCalendarRow = (id) => {
+    if (!confirmDelete('esta etapa del calendario')) return
+    updateBudget({ calendarItems: calendarItems.filter((item) => item.id !== id) })
+  }
+  const duplicateCalendarRow = (row) => {
+    addCalendarRow({ ...row, phase: `${row.phase} copia` })
+  }
+  const quickPresets = [
+    { phase: 'Kickoff / materiales' },
+    { phase: 'Rodaje / soporte VFX' },
+    { phase: 'Postproduccion' },
+    { phase: 'Revision cliente' },
+    { phase: 'Entrega final' },
+  ]
+
+  return (
+    <section className="panel calendar-panel">
+      <div className="admin-block-header">
+        <SectionTitle icon={<CalendarDays />} eyebrow="Cronograma del proyecto" title="Calendario personalizado" />
+        <button className="add-row" onClick={() => addCalendarRow()}><Plus size={16} /> Agregar etapa</button>
+      </div>
+      <p className="muted-copy">Armá el calendario propio de este presupuesto. Las fechas quedan guardadas dentro del proyecto.</p>
+      <div className="preset-row">
+        {quickPresets.map((preset) => <button key={preset.phase} onClick={() => addCalendarRow(preset)}>{preset.phase}</button>)}
+      </div>
+      <div className="calendar-timeline">
+        {calendarItems.filter((item) => item.included).map((item) => (
+          <div className="calendar-chip" key={`chip-${item.id}`}>
+            <strong>{item.phase}</strong>
+            <span>{item.startDate || 'Sin inicio'} - {item.endDate || 'Sin entrega'}</span>
+          </div>
+        ))}
+      </div>
+      <div className="table-wrap">
+        <EditableTable headers={['Incl.', 'Etapa', 'Responsable', 'Inicio', 'Entrega', 'Estado', 'Notas', '']}>
+          {calendarItems.map((row) => (
+            <tr key={row.id}>
+              <td><Check checked={row.included} onChange={(v) => updateCalendarRow(row.id, { included: v })} /></td>
+              <td><CellInput value={row.phase} onChange={(v) => updateCalendarRow(row.id, { phase: v })} /></td>
+              <td><CellInput value={row.owner} onChange={(v) => updateCalendarRow(row.id, { owner: v })} /></td>
+              <td><CellInput type="date" value={row.startDate} onChange={(v) => updateCalendarRow(row.id, { startDate: v })} /></td>
+              <td><CellInput type="date" value={row.endDate} onChange={(v) => updateCalendarRow(row.id, { endDate: v })} /></td>
+              <td><CellSelect value={row.status} options={['Pendiente', 'En curso', 'Listo', 'Bloqueado']} onChange={(v) => updateCalendarRow(row.id, { status: v })} /></td>
+              <td><CellInput value={row.notes} onChange={(v) => updateCalendarRow(row.id, { notes: v })} /></td>
+              <td className="inline-actions">
+                <IconButton title="Duplicar" onClick={() => duplicateCalendarRow(row)} icon={<Copy size={15} />} />
+                <IconButton title="Eliminar" onClick={() => removeCalendarRow(row.id)} icon={<Trash2 size={15} />} />
+              </td>
+            </tr>
+          ))}
+        </EditableTable>
+      </div>
+      {!calendarItems.length && (
+        <div className="empty-state">
+          <h3>Sin etapas</h3>
+          <p>Agregá una etapa para empezar a armar el calendario del proyecto.</p>
+        </div>
+      )}
+    </section>
   )
 }
 

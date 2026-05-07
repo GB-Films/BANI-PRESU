@@ -1,6 +1,6 @@
 const STORAGE_KEY = 'bani-vfx-budgets'
 const CURRENT_KEY = 'bani-vfx-current-budget'
-const PRICING_KEY = 'bani-vfx-pricing-catalog'
+export const PRICING_KEY = 'bani-vfx-pricing-catalog'
 const USER_ROLE_KEY = 'bani-vfx-user-role'
 const SESSION_KEY = 'bani-vfx-session'
 

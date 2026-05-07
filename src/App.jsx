@@ -34,7 +34,7 @@ import {
   money,
   teamSubtotal,
 } from './lib/budget'
-import { clearSession, loadBudgets, loadCurrentId, loadSession, saveBudgets, saveCurrentId, saveSession } from './lib/storage'
+import { PRICING_KEY, clearSession, loadBudgets, loadCurrentId, loadPricingCatalog, loadSession, saveBudgets, saveCurrentId, savePricingCatalog, saveSession } from './lib/storage'
 
 const navItems = [
   ['dashboard', 'Presupuestos'],
@@ -182,7 +182,9 @@ function App() {
   const [wizardStep, setWizardStep] = useState(0)
   const [session, setSession] = useState(() => loadSession())
   const [loginError, setLoginError] = useState('')
-  const [pricingCatalog, setPricingCatalog] = useState(() => mergePricingCatalog(defaultPricingCatalog))
+  const [pricingCatalog, setPricingCatalog] = useState(() => mergePricingCatalog(loadPricingCatalog(null) || defaultPricingCatalog))
+  const [pricingDirty, setPricingDirty] = useState(false)
+  const [pricingStatus, setPricingStatus] = useState(() => loadPricingCatalog(null) ? 'Valores guardados' : 'Valores base publicados')
   const exportRef = useRef(null)
 
   const budget = budgets.find((item) => item.id === currentId) || budgets[0]
@@ -205,17 +207,42 @@ function App() {
   }, [isAdmin, section, wizardActive])
 
   useEffect(() => {
+    if (loadPricingCatalog(null)) return undefined
     let cancelled = false
     fetch(`${assetBase}pricing-catalog.json?ts=${Date.now()}`, { cache: 'no-store' })
       .then((response) => (response.ok ? response.json() : null))
       .then((catalog) => {
-        if (!cancelled && catalog) setPricingCatalog(mergePricingCatalog(catalog))
+        if (!cancelled && catalog) {
+          setPricingCatalog(mergePricingCatalog(catalog))
+          setPricingStatus('Valores base publicados')
+        }
       })
       .catch(() => {})
     return () => {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    const syncPricingCatalog = (event) => {
+      if (event.key !== PRICING_KEY || !event.newValue) return
+      try {
+        setPricingCatalog(mergePricingCatalog(JSON.parse(event.newValue)))
+        setPricingDirty(false)
+        setPricingStatus('Valores sincronizados')
+      } catch {
+        // Ignore malformed storage events.
+      }
+    }
+    window.addEventListener('storage', syncPricingCatalog)
+    return () => window.removeEventListener('storage', syncPricingCatalog)
+  }, [])
+
+  const handleSavePricingCatalog = () => {
+    savePricingCatalog(pricingCatalog)
+    setPricingDirty(false)
+    setPricingStatus(`Guardado ${new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`)
+  }
 
   const handleLogin = (username, password) => {
     const normalized = username.trim().toLowerCase()
@@ -383,7 +410,7 @@ function App() {
         )}
         {!wizardActive && section === 'dashboard' && <Dashboard budgets={budgets} currentId={currentId} setCurrentId={setCurrentId} deleteBudget={deleteBudget} duplicateBudget={duplicateBudget} setSection={setSection} onNewBudget={startNewBudget} onOpenWizard={openWizardForBudget} isAdmin={false} />}
         {!wizardActive && isAdmin && section === 'brand' && <BrandSection budget={budget} updateNested={updateNested} />}
-        {!wizardActive && isAdmin && section === 'admin' && <AdminSection pricingCatalog={pricingCatalog} setPricingCatalog={setPricingCatalog} />}
+        {!wizardActive && isAdmin && section === 'admin' && <AdminSection pricingCatalog={pricingCatalog} setPricingCatalog={setPricingCatalog} markDirty={() => setPricingDirty(true)} onSave={handleSavePricingCatalog} pricingDirty={pricingDirty} pricingStatus={pricingStatus} />}
       </main>
     </div>
   )
@@ -1303,18 +1330,23 @@ function BrandSection({ budget, updateNested }) {
   )
 }
 
-function AdminSection({ pricingCatalog, setPricingCatalog }) {
+function AdminSection({ pricingCatalog, setPricingCatalog, markDirty, onSave, pricingDirty, pricingStatus }) {
   const [dragItem, setDragItem] = useState(null)
 
+  const updateCatalog = (updater) => {
+    markDirty()
+    setPricingCatalog(updater)
+  }
+
   const updateCatalogRow = (collection, index, patch) => {
-    setPricingCatalog((catalog) => ({
+    updateCatalog((catalog) => ({
       ...catalog,
       [collection]: catalog[collection].map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)),
     }))
   }
 
   const addCatalogRow = (collection, row) => {
-    setPricingCatalog((catalog) => ({
+    updateCatalog((catalog) => ({
       ...catalog,
       [collection]: [...catalog[collection], row],
     }))
@@ -1322,14 +1354,14 @@ function AdminSection({ pricingCatalog, setPricingCatalog }) {
 
   const removeCatalogRow = (collection, index) => {
     if (!confirmDelete('esta fila')) return
-    setPricingCatalog((catalog) => ({
+    updateCatalog((catalog) => ({
       ...catalog,
       [collection]: catalog[collection].filter((_, itemIndex) => itemIndex !== index),
     }))
   }
 
   const moveCatalogRow = (collection, fromIndex, toIndex, patch = {}) => {
-    setPricingCatalog((catalog) => {
+    updateCatalog((catalog) => {
       const rows = [...catalog[collection]]
       if (fromIndex < 0 || fromIndex >= rows.length) return catalog
       const [moved] = rows.splice(fromIndex, 1)
@@ -1361,6 +1393,10 @@ function AdminSection({ pricingCatalog, setPricingCatalog }) {
       <div className="admin-note">
         <strong>Modo Admin activo</strong>
         <span>Estos valores alimentan los presets que usa Productor para armar presupuestos sin editar costos individuales.</span>
+      </div>
+      <div className="admin-save-row">
+        <span>{pricingDirty ? 'Hay cambios sin guardar' : pricingStatus}</span>
+        <button className="primary" onClick={onSave} disabled={!pricingDirty}>Guardar cambios</button>
       </div>
 
       <AdminCatalogBlock

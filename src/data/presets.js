@@ -13,19 +13,19 @@ export const areaOptions = [
 ]
 
 export const rolePresets = [
-  { role: 'VFX Supervisor', area: 'Supervision', dayRate: 650 },
   { role: 'VFX Producer', area: 'Produccion', dayRate: 480 },
-  { role: 'Post Producer', area: 'Postproduccion', dayRate: 420 },
+  { role: 'Coordinador de Postproduccion', area: 'Postproduccion', dayRate: 250 },
+  { role: 'Coordinator', area: 'Coordinacion', dayRate: 260 },
   { role: 'Editor', area: 'Edicion', dayRate: 380 },
-  { role: 'Colorist', area: 'Color', dayRate: 520 },
-  { role: '3D Artist', area: '3D', dayRate: 430 },
+  { role: 'Colorista', area: 'Color', dayRate: 520 },
+  { role: 'VFX Supervisor', area: 'Supervision', dayRate: 350 },
   { role: 'Compositor', area: 'VFX', dayRate: 440 },
   { role: 'Motion Designer', area: 'Motion Graphics', dayRate: 390 },
   { role: 'Roto/Paint Artist', area: 'VFX', dayRate: 280 },
   { role: 'Tracking Artist', area: 'VFX', dayRate: 300 },
-  { role: 'Generalist', area: '3D', dayRate: 410 },
+  { role: 'Generalista VFX', area: 'VFX', dayRate: 200 },
+  { role: 'Generalista 3d', area: '3D', dayRate: 430 },
   { role: 'Render Wrangler', area: '3D', dayRate: 260 },
-  { role: 'Coordinator', area: 'Coordinacion', dayRate: 260 },
 ]
 
 export const ballparkPresets = [

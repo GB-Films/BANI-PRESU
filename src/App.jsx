@@ -61,9 +61,28 @@ const mergeDayRates = (rates = []) => {
   const byKey = new Map(saved.map((rate) => [rate.key, rate]))
   return defaultPricingCatalog.ballparkDayRates.map((rate) => ({ ...rate, ...(byKey.get(rate.key) || {}) }))
 }
+
+const shouldRestoreAdjustedRoles = (roles = []) => {
+  const hasAdjustedRoles = roles.some((role) => ['Colorista', 'Generalista VFX', 'Generalista 3d', 'Coordinador de Postproduccion'].includes(role.role))
+  if (hasAdjustedRoles) return false
+  return roles.some((role) => (
+    (role.role === 'VFX Supervisor' && Number(role.dayRate) === 650) ||
+    role.role === 'Post Producer' ||
+    role.role === 'Colorist' ||
+    role.role === '3D Artist' ||
+    role.role === 'Generalist'
+  ))
+}
+
+const mergeRoles = (roles = []) => {
+  if (!roles.length || shouldRestoreAdjustedRoles(roles)) return defaultPricingCatalog.roles
+  return roles
+}
+
 const mergePricingCatalog = (catalog) => ({
   ...defaultPricingCatalog,
   ...(catalog || {}),
+  roles: mergeRoles(catalog?.roles),
   ballparkDayRates: mergeDayRates(catalog?.ballparkDayRates),
 })
 const defaultConsiderations = [

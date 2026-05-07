@@ -615,7 +615,7 @@ function ProducerWizard({ budget, totals, wizardStep, setWizardStep, setWizardAc
       {wizardStep === 2 && <ProjectBreakdownStep budget={budget} pricingCatalog={pricingCatalog} updateNested={updateNested} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
       {wizardStep === 3 && <SummarySection budget={budget} totals={totals} updateNested={updateNested} isAdmin={false} />}
       {wizardStep === 4 && <CalendarPlannerSection budget={budget} updateBudget={updateBudget} />}
-      {wizardStep === 5 && <ExportSection budget={budget} totals={totals} updateNested={updateNested} exportRef={exportRef} exportImage={exportImage} exportPdf={exportPdf} />}
+      {wizardStep === 5 && <ExportSection budget={budget} totals={totals} pricingCatalog={pricingCatalog} updateNested={updateNested} exportRef={exportRef} exportImage={exportImage} exportPdf={exportPdf} />}
 
       <div className="wizard-footer">
         <button className="ghost" onClick={goBack} disabled={wizardStep === 0}>Anterior</button>
@@ -1510,7 +1510,12 @@ function ConsiderationsPanel({ budget, updateNested }) {
   )
 }
 
-function ExportSection({ budget, totals, updateNested, exportRef, exportImage, exportPdf }) {
+const ballparkStageName = (row, pricingCatalog) => {
+  const rate = pricingCatalog?.ballparkDayRates?.find((item) => String(item.key) === String(row.sourceKey))
+  return (rate?.name || row.name || '').replace(/^Jornadas\s+/i, '')
+}
+
+function ExportSection({ budget, totals, pricingCatalog, updateNested, exportRef, exportImage, exportPdf }) {
   const opts = budget.exportOptions
   const isPureBallpark = budget.budgetMode === 'Ballpark'
   const dayRateBallparkRows = budget.ballparkItems.filter((row) => row.included && row.sourceType === 'ballparkDayRate' && Number(row.quantity || 0) > 0)
@@ -1585,7 +1590,7 @@ function ExportSection({ budget, totals, updateNested, exportRef, exportImage, e
               <table>
                 <thead><tr><th>{isEnglish ? 'Stage' : 'Etapa'}</th><th>{isEnglish ? 'Days' : 'Jornadas'}</th></tr></thead>
                 {visibleBallpark.map((row) => (
-                  <tbody key={row.id}><tr><td>{row.name.replace(/^Jornadas\s+/i, '')}</td><td>{row.quantity}</td></tr></tbody>
+                  <tbody key={row.id}><tr><td>{ballparkStageName(row, pricingCatalog)}</td><td>{row.quantity}</td></tr></tbody>
                 ))}
               </table>
             </div>
@@ -1626,7 +1631,7 @@ function ExportSection({ budget, totals, updateNested, exportRef, exportImage, e
               ]} highlight />
             )}
             {opts.team && <ExportTable title={t(budget, 'team')} rows={visibleTeam.map((r) => [r.name || r.role, r.area, `${r.days} ${isEnglish ? 'days' : 'dias'}`, money(teamSubtotal(r), budget.currency)])} />}
-            {opts.ballpark && totals.isBallpark && <ExportTable title={isEnglish ? 'Days by stage' : 'Jornadas por etapa'} rows={visibleBallpark.map((r) => [r.name, `${r.quantity} ${isEnglish ? 'days' : 'jornadas'}`])} />}
+            {opts.ballpark && totals.isBallpark && <ExportTable title={isEnglish ? 'Days by stage' : 'Jornadas por etapa'} rows={visibleBallpark.map((r) => [ballparkStageName(r, pricingCatalog), `${r.quantity} ${isEnglish ? 'days' : 'jornadas'}`])} />}
             {opts.detailed && totals.isDetailed && <ExportTable title={t(budget, 'detailed')} rows={visibleDetailed.map((r) => [r.area, r.taskName, `${r.quantity} ${r.unit}`, money(lineSubtotal(r), budget.currency)])} />}
             {opts.totals && <TotalsPanel budget={budget} totals={totals} exportMode />}
             {opts.notes && <div className="export-notes"><h3>{t(budget, 'notes')}</h3>{visibleConsiderations.map((text, index) => <p key={`${text}-${index}`}>{text}</p>)}</div>}

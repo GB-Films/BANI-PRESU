@@ -1,0 +1,36 @@
+{
+  "roles": [
+    { "role": "VFX Producer", "area": "Produccion", "dayRate": 480 },
+    { "role": "Coordinador de Postproduccion", "area": "Postproduccion", "dayRate": 250 },
+    { "role": "Coordinator", "area": "Coordinacion", "dayRate": 260 },
+    { "role": "Editor", "area": "Edicion", "dayRate": 380 },
+    { "role": "Colorista", "area": "Color", "dayRate": 520 },
+    { "role": "VFX Supervisor", "area": "Supervision", "dayRate": 350 },
+    { "role": "Compositor", "area": "VFX", "dayRate": 440 },
+    { "role": "Motion Designer", "area": "Motion Graphics", "dayRate": 390 },
+    { "role": "Roto/Paint Artist", "area": "VFX", "dayRate": 280 },
+    { "role": "Tracking Artist", "area": "VFX", "dayRate": 300 },
+    { "role": "Generalista VFX", "area": "VFX", "dayRate": 200 },
+    { "role": "Generalista 3d", "area": "3D", "dayRate": 430 },
+    { "role": "Render Wrangler", "area": "3D", "dayRate": 260 }
+  ],
+  "ballpark": [
+    { "name": "Proyecto chico", "description": "Estimacion compacta para pieza simple", "quantity": 1, "unitValue": 2500 },
+    { "name": "Proyecto mediano", "description": "Post, ajustes y delivery con complejidad media", "quantity": 1, "unitValue": 7500 },
+    { "name": "Proyecto grande", "description": "Proyecto integral con varias areas involucradas", "quantity": 1, "unitValue": 18000 },
+    { "name": "Comercial con VFX simple", "description": "Cleanup, compositing simple y delivery", "quantity": 1, "unitValue": 5500 },
+    { "name": "Comercial con VFX complejo", "description": "Supervision, tracking, roto, comp y revisiones", "quantity": 1, "unitValue": 15500 },
+    { "name": "Pieza 3D", "description": "Lookdev, animacion, render y compositing", "quantity": 1, "unitValue": 12000 },
+    { "name": "Pack de redes", "description": "Adaptaciones y exportaciones multipieza", "quantity": 1, "unitValue": 3200 },
+    { "name": "Beauty cleanup", "description": "Retoque, cleanup y control de detalle", "quantity": 1, "unitValue": 4600 },
+    { "name": "Compositing avanzado", "description": "Integracion compleja y ajustes por plano", "quantity": 1, "unitValue": 9000 }
+  ],
+  "ballparkDayRates": [
+    { "key": "gestion", "name": "Gestion de proyecto", "description": "Jornadas de gestion, coordinacion y seguimiento", "unitValue": 420 },
+    { "key": "montaje", "name": "Montaje", "description": "Jornadas de montaje / edicion", "unitValue": 380 },
+    { "key": "sonido", "name": "Sonido", "description": "Jornadas de sonido", "unitValue": 360 },
+    { "key": "color", "name": "Color", "description": "Jornadas de color", "unitValue": 520 },
+    { "key": "vfx", "name": "VFX", "description": "Jornadas de VFX", "unitValue": 440 },
+    { "key": "3d", "name": "3D", "description": "Jornadas de 3D", "unitValue": 430 }
+  ]
+}

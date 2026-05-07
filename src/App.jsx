@@ -1034,12 +1034,33 @@ function SummarySection({ budget, totals, updateNested, isAdmin = false }) {
         <TotalsPanel budget={budget} totals={totals} />
       </div>
       <ConsiderationsPanel budget={budget} updateNested={updateNested} />
+      <BillingPanel budget={budget} updateNested={updateNested} />
       {isAdmin && <div className="chart-grid">
         <ChartCard title="Por area" data={chartDataFromTotals(areaTotals)} />
         <ChartCard title="Equipo vs tareas" data={modeData} />
         <ListCard title="Total por persona / rol" totals={peopleTotals} currency={budget.currency} />
       </div>}
     </section>
+  )
+}
+
+function BillingPanel({ budget, updateNested }) {
+  const specs = budget.productionSpecs || {}
+  const updateSpec = (patch) => updateNested('productionSpecs', patch)
+
+  return (
+    <div className="billing-panel">
+      <div className="admin-block-header">
+        <div>
+          <p className="eyebrow">Export / cliente</p>
+          <h3>Facturacion y pago</h3>
+        </div>
+      </div>
+      <div className="two-col">
+        <Textarea label="Facturacion" value={specs.billingInfo || ''} onChange={(v) => updateSpec({ billingInfo: v })} />
+        <Textarea label="Condicion de pago" value={specs.paymentTerms || ''} onChange={(v) => updateSpec({ paymentTerms: v })} />
+      </div>
+    </div>
   )
 }
 

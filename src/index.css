@@ -1087,7 +1087,8 @@ h3 {
   justify-content: flex-end;
 }
 
-.considerations-panel {
+.considerations-panel,
+.billing-panel {
   display: grid;
   gap: 14px;
   margin-top: 16px;

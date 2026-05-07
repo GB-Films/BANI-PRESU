@@ -57,26 +57,11 @@ const defaultPricingCatalog = {
   ],
 }
 const mergeDayRates = (rates = []) => {
-  const saved = rates.length ? rates : defaultPricingCatalog.ballparkDayRates
-  const byKey = new Map(saved.map((rate) => [rate.key, rate]))
-  return defaultPricingCatalog.ballparkDayRates.map((rate) => ({ ...rate, ...(byKey.get(rate.key) || {}) }))
-}
-
-const shouldRestoreAdjustedRoles = (roles = []) => {
-  const hasAdjustedRoles = roles.some((role) => ['Colorista', 'Generalista VFX', 'Generalista 3d', 'Coordinador de Postproduccion'].includes(role.role))
-  if (hasAdjustedRoles) return false
-  return roles.some((role) => (
-    (role.role === 'VFX Supervisor' && Number(role.dayRate) === 650) ||
-    role.role === 'Post Producer' ||
-    role.role === 'Colorist' ||
-    role.role === '3D Artist' ||
-    role.role === 'Generalist'
-  ))
+  return rates.length ? rates : defaultPricingCatalog.ballparkDayRates
 }
 
 const mergeRoles = (roles = []) => {
-  if (!roles.length || shouldRestoreAdjustedRoles(roles)) return defaultPricingCatalog.roles
-  return roles
+  return roles.length ? roles : defaultPricingCatalog.roles
 }
 
 const mergePricingCatalog = (catalog) => ({
@@ -1361,8 +1346,6 @@ function AdminSection({ pricingCatalog, setPricingCatalog }) {
     clearDrag()
   }
 
-  const resetCatalog = () => setPricingCatalog(defaultPricingCatalog)
-
   return (
     <section className="panel admin-panel">
       <SectionTitle icon={<Settings />} eyebrow="Solo administrador" title="Base de costos" />
@@ -1435,10 +1418,6 @@ function AdminSection({ pricingCatalog, setPricingCatalog }) {
           )}
         />
       </AdminCatalogBlock>
-
-      <div className="admin-actions">
-        <button className="ghost" onClick={resetCatalog}>Restaurar valores base</button>
-      </div>
     </section>
   )
 }

@@ -36,7 +36,23 @@ import {
   money,
   teamSubtotal,
 } from './lib/budget'
-import { PRICING_KEY, clearSession, loadBudgets, loadCurrentId, loadPricingCatalog, loadSession, saveBudgets, saveCurrentId, savePricingCatalog, saveSession } from './lib/storage'
+import {
+  PRICING_KEY,
+  clearSession,
+  isCloudStorageEnabled,
+  loadBudgets,
+  loadCurrentId,
+  loadPricingCatalog,
+  loadSession,
+  loadSharedBudgets,
+  loadSharedPricingCatalog,
+  saveBudgets,
+  saveCurrentId,
+  savePricingCatalog,
+  saveSession,
+  saveSharedBudgets,
+  saveSharedPricingCatalog,
+} from './lib/storage'
 
 const navItems = [
   ['dashboard', 'Presupuestos'],
@@ -198,6 +214,8 @@ function App() {
   const [pricingStatus, setPricingStatus] = useState(() => loadPricingCatalog(null) ? 'Valores guardados' : 'Valores base publicados')
   const [pricingPrompt, setPricingPrompt] = useState(null)
   const [deletePrompt, setDeletePrompt] = useState(null)
+  const [cloudLoaded, setCloudLoaded] = useState(!isCloudStorageEnabled())
+  const [cloudStatus, setCloudStatus] = useState(isCloudStorageEnabled() ? 'Conectando nube...' : 'Modo local')
   const pricingPromptResolver = useRef(null)
   const deletePromptResolver = useRef(null)
   const savedPricingCatalog = useRef(mergePricingCatalog(loadPricingCatalog(null) || defaultPricingCatalog))
@@ -211,11 +229,52 @@ function App() {
 
   useEffect(() => {
     saveBudgets(budgets)
-  }, [budgets])
+    if (cloudLoaded && isCloudStorageEnabled()) {
+      saveSharedBudgets(budgets).catch(() => setCloudStatus('No se pudo guardar en nube'))
+    }
+  }, [budgets, cloudLoaded])
 
   useEffect(() => {
     if (currentId) saveCurrentId(currentId)
   }, [currentId])
+
+  useEffect(() => {
+    if (!isCloudStorageEnabled()) return undefined
+    let cancelled = false
+    const hydrateCloudState = async () => {
+      try {
+        const [sharedBudgets, sharedPricing] = await Promise.all([
+          loadSharedBudgets(),
+          loadSharedPricingCatalog(),
+        ])
+        if (cancelled) return
+        if (sharedBudgets?.length) {
+          setBudgets(sharedBudgets)
+          setCurrentId((current) => sharedBudgets.some((item) => item.id === current) ? current : sharedBudgets[0].id)
+        } else {
+          await saveSharedBudgets(budgets)
+        }
+        if (sharedPricing) {
+          const merged = mergePricingCatalog(sharedPricing)
+          setPricingCatalog(merged)
+          savedPricingCatalog.current = merged
+          savePricingCatalog(merged)
+          setPricingStatus('Valores sincronizados')
+        } else {
+          await saveSharedPricingCatalog(pricingCatalog)
+        }
+        setCloudStatus('Nube sincronizada')
+      } catch {
+        if (!cancelled) setCloudStatus('Sin conexion a nube')
+      } finally {
+        if (!cancelled) setCloudLoaded(true)
+      }
+    }
+    hydrateCloudState()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     if (!isAdmin && section !== 'dashboard' && !wizardActive) setSection('dashboard')
@@ -286,6 +345,11 @@ function App() {
     savedPricingCatalog.current = pricingCatalog
     setPricingDirty(false)
     setPricingStatus(`Guardado ${new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`)
+    if (isCloudStorageEnabled()) {
+      saveSharedPricingCatalog(pricingCatalog)
+        .then(() => setCloudStatus('Nube sincronizada'))
+        .catch(() => setCloudStatus('No se pudo guardar en nube'))
+    }
   }
 
   const resolvePricingPrompt = (result) => {
@@ -478,6 +542,7 @@ function App() {
               <h1>{budget.projectName}</h1>
             </div>
             <div className="toolbar">
+              <span className={`cloud-pill ${isCloudStorageEnabled() ? 'online' : ''}`}>{cloudStatus}</span>
               <SessionPanel session={session} onLogout={handleLogout} />
             </div>
           </header>

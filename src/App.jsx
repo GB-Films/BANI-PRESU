@@ -1744,19 +1744,18 @@ function CalendarEditableView({ budget, settings, weeks, findCell, updateCell, a
 
   return (
     <div className="calendar-export-page calendar-live-preview">
-      {exportPages.map((page) => (
+      {exportPages.map((page, pageIndex) => (
         <section className="calendar-export-month-page" key={`editable-${page.key}`}>
-          <CalendarMonthHeader budget={budget} settings={settings} monthTitle={page.title} />
+          <CalendarMonthHeader budget={budget} settings={settings} monthTitle={page.title} compact={pageIndex > 0} />
           {page.weeks.map(({ days: week, index: weekIndex }) => (
             <div className="calendar-export-week calendar-live-week" key={`editable-week-${page.key}-${weekIndex}`}>
+              <div className="calendar-export-brand">{settings.language === 'en' ? 'Week' : 'Semana'} {weekIndex + 1} / BANI VFX</div>
               <div className="calendar-export-days">
                 <span />
-                {week.map((day) => <strong key={day.key}>{day.label}</strong>)}
+                {week.map((day) => <strong key={day.key}>{day.label}<b>{day.day}</b></strong>)}
               </div>
-              <div className="calendar-export-brand">{settings.language === 'en' ? 'Week' : 'Semana'} {weekIndex + 1} / BANI VFX</div>
               <div className="calendar-export-grid calendar-edit-export-grid">
                 <span />
-                {week.map((day) => <b key={day.key}>{day.day}</b>)}
                 {settings.areas.map((area) => (
                   <Fragment key={`editable-${page.key}-${weekIndex}-${area}`}>
                     <strong>{area}</strong>
@@ -1788,11 +1787,19 @@ function CalendarEditableView({ budget, settings, weeks, findCell, updateCell, a
   )
 }
 
-function CalendarMonthHeader({ budget, settings, monthTitle }) {
+function CalendarMonthHeader({ budget, settings, monthTitle, compact = false }) {
   const titleLabel = settings.language === 'en' ? 'Schedule' : 'Calendario'
   const finalClientLabel = settings.language === 'en' ? 'Final client' : 'Cliente final'
   const clientLabel = settings.language === 'en' ? 'Client' : 'Cliente'
   const projectTitle = settings.title || budget.projectName
+
+  if (compact) {
+    return (
+      <header className="calendar-export-month-only">
+        <h4>{monthTitle}</h4>
+      </header>
+    )
+  }
 
   return (
     <header className="calendar-export-header">
@@ -1823,17 +1830,16 @@ function CalendarExportView({ budget, settings, weeks, calendarItems, exportRef 
     <div className="calendar-export-page" ref={exportRef}>
       {exportPages.map((page, pageIndex) => (
         <section className="calendar-export-month-page" key={page.key}>
-          <CalendarMonthHeader budget={budget} settings={settings} monthTitle={page.title} />
+          <CalendarMonthHeader budget={budget} settings={settings} monthTitle={page.title} compact={pageIndex > 0} />
           {page.weeks.map(({ days: week, index: weekIndex }) => (
             <div className="calendar-export-week" key={`export-week-${weekIndex}`}>
+              <div className="calendar-export-brand">{settings.language === 'en' ? 'Week' : 'Semana'} {weekIndex + 1} / BANI VFX</div>
               <div className="calendar-export-days">
                 <span />
-                {week.map((day) => <strong key={day.key}>{day.label}</strong>)}
+                {week.map((day) => <strong key={day.key}>{day.label}<b>{day.day}</b></strong>)}
               </div>
-              <div className="calendar-export-brand">{settings.language === 'en' ? 'Week' : 'Semana'} {weekIndex + 1} / BANI VFX</div>
               <div className="calendar-export-grid">
                 <span />
-                {week.map((day) => <b key={day.key}>{day.day}</b>)}
                 {settings.areas.map((area) => (
                   <Fragment key={`export-${weekIndex}-${area}`}>
                     <strong>{area}</strong>

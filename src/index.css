@@ -742,15 +742,81 @@ h3 {
   white-space: pre-wrap;
 }
 
+.calendar-task-bank {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--vault-radius);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.task-preset-add {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.task-preset-add input {
+  min-width: 220px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #050505;
+  color: #fff;
+  font-weight: 800;
+}
+
+.task-preset-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.task-preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(230, 30, 110, 0.32);
+  border-radius: 999px;
+  background: rgba(230, 30, 110, 0.1);
+  color: #fff;
+  cursor: grab;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.task-preset-chip button {
+  border: 0;
+  background: transparent;
+  color: #9a9a9a;
+  cursor: pointer;
+  font-weight: 950;
+}
+
 .calendar-export-page {
   position: fixed;
   left: -10000px;
   top: 0;
   width: 1500px;
-  padding: 46px;
+  padding: 0;
   background: #080808;
   color: #fff;
   font-family: inherit;
+}
+
+.calendar-export-month-page {
+  width: 1500px;
+  min-height: 900px;
+  padding: 46px;
+  background: #080808;
+  box-sizing: border-box;
+  page-break-after: always;
+}
+
+.calendar-export-month-page + .calendar-export-month-page {
+  margin-top: 28px;
 }
 
 .calendar-export-header {
@@ -817,6 +883,21 @@ h3 {
 .calendar-export-title h3 {
   margin: 12px 0 0;
   color: #d8d8d8;
+}
+
+.calendar-export-month-heading {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 24px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.calendar-export-month-heading strong {
+  color: var(--bani-pink);
+  font-size: 44px;
+  font-style: italic;
+  line-height: 1;
 }
 
 .calendar-export-week {

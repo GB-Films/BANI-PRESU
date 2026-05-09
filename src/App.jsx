@@ -1282,6 +1282,42 @@ const calendarConsiderations = {
     { id: 'calendar-client-en', text: 'Client reviews and deliveries will be coordinated according to both parties availability.', included: false },
   ],
 }
+const defaultCalendarTaskPresets = {
+  es: [
+    'Descarga de material',
+    'Organizacion del proyecto',
+    'Montaje',
+    'Revision interna',
+    'Envio al cliente',
+    'Feedback cliente',
+    'Composicion',
+    'Tracking de la escena',
+    'Layout 3D',
+    'Modelado de elementos',
+    'Animacion',
+    'Render',
+    'Color',
+    'Sonido',
+    'Entrega final',
+  ],
+  en: [
+    'Material download',
+    'Project setup',
+    'Editing',
+    'Internal review',
+    'Client delivery',
+    'Client feedback',
+    'Compositing',
+    'Scene tracking',
+    '3D layout',
+    'Asset modeling',
+    'Animation',
+    'Render',
+    'Color',
+    'Sound',
+    'Final delivery',
+  ],
+}
 
 const toDateInputValue = (date) => date.toISOString().slice(0, 10)
 
@@ -1291,6 +1327,17 @@ function getMonday(value) {
   const diff = day === 0 ? -6 : 1 - day
   base.setDate(base.getDate() + diff)
   return base
+}
+
+function firstMondayOfMonth(monthValue) {
+  const [year, month] = (monthValue || new Date().toISOString().slice(0, 7)).split('-').map(Number)
+  const date = new Date(year, month - 1, 1)
+  while (date.getDay() !== 1) date.setDate(date.getDate() + 1)
+  return toDateInputValue(date)
+}
+
+function monthInputFromDate(value) {
+  return (value || new Date().toISOString().slice(0, 10)).slice(0, 7)
 }
 
 function buildCalendarWeeks(startDate, weeks = 2, language = 'es') {
@@ -1314,8 +1361,22 @@ function monthNameFromDate(value, language = 'es') {
   return date.toLocaleDateString(language === 'en' ? 'en-US' : 'es-AR', { month: 'long' }).toUpperCase()
 }
 
+function groupWeeksByMonth(weeks, language = 'es') {
+  return weeks.reduce((groups, week, index) => {
+    const monthKey = week[0]?.key?.slice(0, 7) || `month-${index}`
+    const existing = groups.find((group) => group.key === monthKey)
+    const weekData = { index, days: week }
+    if (existing) {
+      existing.weeks.push(weekData)
+      return groups
+    }
+    return [...groups, { key: monthKey, title: monthNameFromDate(`${monthKey}-01`, language), weeks: [weekData] }]
+  }, [])
+}
+
 function CalendarPlannerSection({ budget, updateBudget }) {
   const calendarRef = useRef(null)
+  const [newTaskPreset, setNewTaskPreset] = useState('')
   const calendarItems = budget.calendarItems?.length ? budget.calendarItems : []
   const calendarLanguage = budget.calendarSettings?.language || getLanguage(budget)
   const savedCalendarConsiderations = budget.calendarSettings?.considerations || []
@@ -1323,14 +1384,17 @@ function CalendarPlannerSection({ budget, updateBudget }) {
   const shouldUseCalendarDefaults = !savedCalendarConsiderations.length || !savedCalendarConsiderations.some((item) => item.id?.endsWith(calendarLanguage))
   const settings = {
     title: budget.calendarSettings?.title || budget.projectName,
+    month: budget.calendarSettings?.month || monthInputFromDate(budget.calendarSettings?.startDate || budget.date),
     startDate: budget.calendarSettings?.startDate || budget.date || new Date().toISOString().slice(0, 10),
     weeks: Number(budget.calendarSettings?.weeks || 2),
     areas: budget.calendarSettings?.areas?.length ? budget.calendarSettings.areas : calendarAreaOptions,
     language: calendarLanguage,
     considerations: shouldUseCalendarDefaults ? defaultCalendarConsiderations : savedCalendarConsiderations,
+    taskPresets: budget.calendarSettings?.taskPresets?.length ? budget.calendarSettings.taskPresets : defaultCalendarTaskPresets[calendarLanguage],
   }
   const weeks = buildCalendarWeeks(settings.startDate, settings.weeks, settings.language)
   const updateSettings = (patch) => updateBudget({ calendarSettings: { ...settings, ...patch } })
+  const updateCalendarMonth = (month) => updateSettings({ month, startDate: firstMondayOfMonth(month) })
   const updateCalendarConsideration = (id, patch) => {
     updateSettings({
       considerations: settings.considerations.map((item) => (item.id === id ? { ...item, ...patch } : item)),
@@ -1345,6 +1409,15 @@ function CalendarPlannerSection({ budget, updateBudget }) {
     if (!confirmDelete(settings.language === 'en' ? 'this consideration' : 'esta consideracion')) return
     updateSettings({ considerations: settings.considerations.filter((item) => item.id !== id) })
   }
+  const addTaskPreset = () => {
+    const text = newTaskPreset.trim()
+    if (!text) return
+    updateSettings({ taskPresets: [...settings.taskPresets, text] })
+    setNewTaskPreset('')
+  }
+  const removeTaskPreset = (text) => {
+    updateSettings({ taskPresets: settings.taskPresets.filter((item) => item !== text) })
+  }
   const findCell = (area, date) => calendarItems.find((item) => item.area === area && item.date === date)
   const updateCell = (area, date, task) => {
     const existing = findCell(area, date)
@@ -1357,6 +1430,11 @@ function CalendarPlannerSection({ budget, updateBudget }) {
     updateBudget({
       calendarItems: [...calendarItems, createCalendarItem({ area, date, task, included: Boolean(task.trim()) })],
     })
+  }
+  const appendTaskToCell = (area, date, task) => {
+    const current = findCell(area, date)?.task || ''
+    const next = current.trim() ? `${current.trim()}\n${task}` : task
+    updateCell(area, date, next)
   }
   const fillFromBudget = () => {
     const firstWeek = weeks[0] || []
@@ -1387,11 +1465,20 @@ function CalendarPlannerSection({ budget, updateBudget }) {
     link.click()
   }
   const exportCalendarPdf = async () => {
-    const canvas = await html2canvas(calendarRef.current, { backgroundColor: '#080808', scale: 2 })
-    const img = canvas.toDataURL('image/png')
-    const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas.width, canvas.height] })
-    pdf.addImage(img, 'PNG', 0, 0, canvas.width, canvas.height)
-    pdf.save(`${budget.budgetNumber}-calendario.pdf`)
+    const pages = Array.from(calendarRef.current.querySelectorAll('.calendar-export-month-page'))
+    const targets = pages.length ? pages : [calendarRef.current]
+    let pdf = null
+    for (const [index, page] of targets.entries()) {
+      const canvas = await html2canvas(page, { backgroundColor: '#080808', scale: 2 })
+      const img = canvas.toDataURL('image/png')
+      if (!pdf) {
+        pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas.width, canvas.height] })
+      } else {
+        pdf.addPage([canvas.width, canvas.height], 'landscape')
+      }
+      pdf.addImage(img, 'PNG', 0, 0, canvas.width, canvas.height)
+      if (index === targets.length - 1) pdf.save(`${budget.budgetNumber}-calendario.pdf`)
+    }
   }
 
   return (
@@ -1406,9 +1493,34 @@ function CalendarPlannerSection({ budget, updateBudget }) {
       <p className="muted-copy">Defini fecha de inicio y semanas. La grilla se arma sola por dias habiles; vos completas las tareas por area.</p>
       <div className="form-grid">
         <Input label="Titulo calendario" value={settings.title} onChange={(v) => updateSettings({ title: v })} />
-        <Input type="date" label="Semana de inicio" value={settings.startDate} onChange={(v) => updateSettings({ startDate: v })} />
+        <Input type="month" label="Mes calendario" value={settings.month} onChange={updateCalendarMonth} />
         <Input type="number" label="Cantidad de semanas" value={settings.weeks} onChange={(v) => updateSettings({ weeks: Math.max(1, Math.min(8, Number(v || 1))) })} />
-        <Select label="Idioma calendario" value={settings.language} options={['es', 'en']} labels={{ es: 'Castellano', en: 'English' }} onChange={(v) => updateSettings({ language: v, considerations: calendarConsiderations[v] })} />
+        <Select label="Idioma calendario" value={settings.language} options={['es', 'en']} labels={{ es: 'Castellano', en: 'English' }} onChange={(v) => updateSettings({ language: v, considerations: calendarConsiderations[v], taskPresets: defaultCalendarTaskPresets[v] })} />
+      </div>
+      <div className="calendar-task-bank">
+        <div className="admin-block-header">
+          <div>
+            <p className="eyebrow">{settings.language === 'en' ? 'Drag & drop' : 'Arrastrar y soltar'}</p>
+            <h3>{settings.language === 'en' ? 'Preset tasks' : 'Textos prestablecidos'}</h3>
+          </div>
+          <div className="task-preset-add">
+            <input value={newTaskPreset} onChange={(event) => setNewTaskPreset(event.target.value)} placeholder={settings.language === 'en' ? 'New task' : 'Nuevo texto'} />
+            <button className="add-row" onClick={addTaskPreset}><Plus size={16} /> {settings.language === 'en' ? 'Add' : 'Agregar'}</button>
+          </div>
+        </div>
+        <div className="task-preset-list">
+          {settings.taskPresets.map((text) => (
+            <span
+              className="task-preset-chip"
+              draggable
+              key={text}
+              onDragStart={(event) => event.dataTransfer.setData('text/plain', text)}
+            >
+              {text}
+              <button onClick={() => removeTaskPreset(text)} aria-label="Eliminar texto">x</button>
+            </span>
+          ))}
+        </div>
       </div>
       <div className="inline-actions">
         <button className="ghost" onClick={fillFromBudget}><Sparkles size={16} /> Armar base automatica</button>
@@ -1417,7 +1529,7 @@ function CalendarPlannerSection({ budget, updateBudget }) {
       <div className="calendar-builder">
         {weeks.map((week, weekIndex) => (
           <div className="calendar-edit-week" key={`edit-week-${weekIndex}`}>
-            <div className="calendar-edit-week-header">Semana {weekIndex + 1} / BANI VFX</div>
+            <div className="calendar-edit-week-header">{settings.language === 'en' ? 'Week' : 'Semana'} {weekIndex + 1} / BANI VFX</div>
             <div className="calendar-edit-grid">
               <div />
               {week.map((day) => <strong key={day.key}>{day.label}<span>{day.day}</span></strong>)}
@@ -1431,6 +1543,12 @@ function CalendarPlannerSection({ budget, updateBudget }) {
                         key={`${area}-${day.key}`}
                         value={cell?.task || ''}
                         onChange={(event) => updateCell(area, day.key, event.target.value)}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => {
+                          event.preventDefault()
+                          const text = event.dataTransfer.getData('text/plain')
+                          if (text) appendTaskToCell(area, day.key, text)
+                        }}
                         placeholder="-"
                       />
                     )
@@ -1467,6 +1585,7 @@ function CalendarPlannerSection({ budget, updateBudget }) {
 function CalendarExportView({ budget, settings, weeks, calendarItems, exportRef }) {
   const taskFor = (area, date) => calendarItems.find((item) => item.included && item.area === area && item.date === date)?.task || '-'
   const visibleConsiderations = (settings.considerations || []).filter((item) => item.included && item.text)
+  const monthGroups = groupWeeksByMonth(weeks, settings.language)
   const titleLabel = settings.language === 'en' ? 'Schedule' : 'Calendario'
   const finalClientLabel = settings.language === 'en' ? 'Final client' : 'Cliente final'
   const clientLabel = settings.language === 'en' ? 'Client' : 'Cliente'
@@ -1474,47 +1593,57 @@ function CalendarExportView({ budget, settings, weeks, calendarItems, exportRef 
 
   return (
     <div className="calendar-export-page" ref={exportRef}>
-      <header className="calendar-export-header">
-        <div className="calendar-export-lockup">
-          <img src={`${assetBase}monograma-negativo-perfil.jpg`} alt="BANI VFX" />
-          <div>
-            <strong>BANI VFX</strong>
-            <span>{titleLabel}</span>
-          </div>
-        </div>
-        <div className="calendar-export-title">
-          <p>{settings.title || budget.projectName} - {monthNameFromDate(settings.startDate, settings.language)}</p>
-          {budget.finalClient && <h2>{budget.finalClient}</h2>}
-          {budget.client && <h3>{clientLabel}: {budget.client}</h3>}
-          {!budget.finalClient && <h2>{budget.projectName}</h2>}
-          {budget.finalClient && <span>{finalClientLabel}</span>}
-        </div>
-      </header>
-      {weeks.map((week, weekIndex) => (
-        <div className="calendar-export-week" key={`export-week-${weekIndex}`}>
-          <div className="calendar-export-days">
-            <span />
-            {week.map((day) => <strong key={day.key}>{day.label}</strong>)}
-          </div>
-          <div className="calendar-export-brand">{settings.language === 'en' ? 'Week' : 'Semana'} {weekIndex + 1} / BANI VFX</div>
-          <div className="calendar-export-grid">
-            <span />
-            {week.map((day) => <b key={day.key}>{day.day}</b>)}
-            {settings.areas.map((area) => (
-              <Fragment key={`export-${weekIndex}-${area}`}>
-                <strong>{area}</strong>
-                {week.map((day) => <p key={`${area}-${day.key}`}>{taskFor(area, day.key)}</p>)}
-              </Fragment>
-            ))}
-          </div>
-        </div>
-      ))}
-      {!!visibleConsiderations.length && (
-        <section className="calendar-export-notes">
-          <h3>{considerationsLabel}</h3>
-          {visibleConsiderations.map((item) => <p key={item.id}>{item.text}</p>)}
+      {monthGroups.map((group, groupIndex) => (
+        <section className="calendar-export-month-page" key={group.key}>
+          {groupIndex === 0 ? (
+            <header className="calendar-export-header">
+              <div className="calendar-export-lockup">
+                <img src={`${assetBase}monograma-negativo-perfil.jpg`} alt="BANI VFX" />
+                <div>
+                  <strong>BANI VFX</strong>
+                  <span>{titleLabel}</span>
+                </div>
+              </div>
+              <div className="calendar-export-title">
+                <p>{settings.title || budget.projectName} - {group.title}</p>
+                {budget.finalClient && <h2>{budget.finalClient}</h2>}
+                {budget.client && <h3>{clientLabel}: {budget.client}</h3>}
+                {!budget.finalClient && <h2>{budget.projectName}</h2>}
+                {budget.finalClient && <span>{finalClientLabel}</span>}
+              </div>
+            </header>
+          ) : (
+            <div className="calendar-export-month-heading">
+              <strong>{group.title}</strong>
+            </div>
+          )}
+          {group.weeks.map(({ days: week, index: weekIndex }) => (
+            <div className="calendar-export-week" key={`export-week-${weekIndex}`}>
+              <div className="calendar-export-days">
+                <span />
+                {week.map((day) => <strong key={day.key}>{day.label}</strong>)}
+              </div>
+              <div className="calendar-export-brand">{settings.language === 'en' ? 'Week' : 'Semana'} {weekIndex + 1} / BANI VFX</div>
+              <div className="calendar-export-grid">
+                <span />
+                {week.map((day) => <b key={day.key}>{day.day}</b>)}
+                {settings.areas.map((area) => (
+                  <Fragment key={`export-${weekIndex}-${area}`}>
+                    <strong>{area}</strong>
+                    {week.map((day) => <p key={`${area}-${day.key}`}>{taskFor(area, day.key)}</p>)}
+                  </Fragment>
+                ))}
+              </div>
+            </div>
+          ))}
+          {groupIndex === monthGroups.length - 1 && !!visibleConsiderations.length && (
+            <section className="calendar-export-notes">
+              <h3>{considerationsLabel}</h3>
+              {visibleConsiderations.map((item) => <p key={item.id}>{item.text}</p>)}
+            </section>
+          )}
         </section>
-      )}
+      ))}
     </div>
   )
 }

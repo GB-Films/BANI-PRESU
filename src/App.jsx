@@ -1517,6 +1517,21 @@ function groupWeeksByMonth(weeks, language = 'es') {
   }, [])
 }
 
+function paginateCalendarWeeks(weeks, language = 'es', maxWeeksPerPage = 3) {
+  return groupWeeksByMonth(weeks, language).flatMap((group) => {
+    const pages = []
+    for (let index = 0; index < group.weeks.length; index += maxWeeksPerPage) {
+      pages.push({
+        key: `${group.key}-${index / maxWeeksPerPage}`,
+        title: group.title,
+        monthKey: group.key,
+        weeks: group.weeks.slice(index, index + maxWeeksPerPage),
+      })
+    }
+    return pages
+  })
+}
+
 function CalendarPlannerSection({ budget, updateBudget }) {
   const calendarRef = useRef(null)
   const [newTaskPreset, setNewTaskPreset] = useState('')
@@ -1736,7 +1751,7 @@ function CalendarPlannerSection({ budget, updateBudget }) {
 function CalendarExportView({ budget, settings, weeks, calendarItems, exportRef }) {
   const taskFor = (area, date) => calendarItems.find((item) => item.included && item.area === area && item.date === date)?.task || '-'
   const visibleConsiderations = (settings.considerations || []).filter((item) => item.included && item.text)
-  const monthGroups = groupWeeksByMonth(weeks, settings.language)
+  const exportPages = paginateCalendarWeeks(weeks, settings.language)
   const titleLabel = settings.language === 'en' ? 'Schedule' : 'Calendario'
   const finalClientLabel = settings.language === 'en' ? 'Final client' : 'Cliente final'
   const clientLabel = settings.language === 'en' ? 'Client' : 'Cliente'
@@ -1744,9 +1759,9 @@ function CalendarExportView({ budget, settings, weeks, calendarItems, exportRef 
 
   return (
     <div className="calendar-export-page" ref={exportRef}>
-      {monthGroups.map((group, groupIndex) => (
-        <section className="calendar-export-month-page" key={group.key}>
-          {groupIndex === 0 ? (
+      {exportPages.map((page, pageIndex) => (
+        <section className="calendar-export-month-page" key={page.key}>
+          {pageIndex === 0 ? (
             <header className="calendar-export-header">
               <div className="calendar-export-lockup">
                 <img src={`${assetBase}monograma-negativo-perfil.jpg`} alt="BANI VFX" />
@@ -1756,7 +1771,8 @@ function CalendarExportView({ budget, settings, weeks, calendarItems, exportRef 
                 </div>
               </div>
               <div className="calendar-export-title">
-                <p>{settings.title || budget.projectName} - {group.title}</p>
+                <p>{settings.title || budget.projectName}</p>
+                <h4>{page.title}</h4>
                 {budget.finalClient && <h2>{budget.finalClient}</h2>}
                 {budget.client && <h3>{clientLabel}: {budget.client}</h3>}
                 {!budget.finalClient && <h2>{budget.projectName}</h2>}
@@ -1765,10 +1781,10 @@ function CalendarExportView({ budget, settings, weeks, calendarItems, exportRef 
             </header>
           ) : (
             <div className="calendar-export-month-heading">
-              <strong>{group.title}</strong>
+              <strong>{page.title}</strong>
             </div>
           )}
-          {group.weeks.map(({ days: week, index: weekIndex }) => (
+          {page.weeks.map(({ days: week, index: weekIndex }) => (
             <div className="calendar-export-week" key={`export-week-${weekIndex}`}>
               <div className="calendar-export-days">
                 <span />
@@ -1787,7 +1803,7 @@ function CalendarExportView({ budget, settings, weeks, calendarItems, exportRef 
               </div>
             </div>
           ))}
-          {groupIndex === monthGroups.length - 1 && !!visibleConsiderations.length && (
+          {pageIndex === exportPages.length - 1 && !!visibleConsiderations.length && (
             <section className="calendar-export-notes">
               <h3>{considerationsLabel}</h3>
               {visibleConsiderations.map((item) => <p key={item.id}>{item.text}</p>)}

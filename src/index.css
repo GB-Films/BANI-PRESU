@@ -901,6 +901,15 @@ h3 {
   font-weight: 700;
 }
 
+.calendar-export-title h4 {
+  margin: 0 0 10px;
+  color: #f4f4f4;
+  font-size: 40px;
+  font-style: italic;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
 .calendar-export-title h2 {
   margin: 0;
   color: var(--bani-pink);
@@ -924,14 +933,14 @@ h3 {
 
 .calendar-export-month-heading strong {
   color: var(--bani-pink);
-  font-size: 44px;
+  font-size: 64px;
   font-style: italic;
   line-height: 1;
 }
 
 .calendar-export-week {
   overflow: hidden;
-  margin-bottom: 28px;
+  margin-bottom: 22px;
   border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 22px;
   background: rgba(255, 255, 255, 0.025);

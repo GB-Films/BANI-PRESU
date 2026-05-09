@@ -1019,7 +1019,6 @@ h3 {
   letter-spacing: 0.08em;
 }
 
-.calendar-export-grid > span,
 .calendar-export-grid > strong,
 .calendar-export-grid > p {
   min-height: 50px;
@@ -1040,10 +1039,6 @@ h3 {
   color: #fff;
   font-weight: 950;
   text-transform: uppercase;
-}
-
-.calendar-export-grid > span {
-  background: #151515;
 }
 
 .calendar-export-days .outside-month,

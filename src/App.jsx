@@ -1749,13 +1749,12 @@ function CalendarEditableView({ budget, settings, weeks, findCell, updateCell, a
           <CalendarMonthHeader budget={budget} settings={settings} monthTitle={page.title} compact={pageIndex > 0} />
           {page.weeks.map(({ days: week, index: weekIndex }) => (
             <div className="calendar-export-week calendar-live-week" key={`editable-week-${page.key}-${weekIndex}`}>
-              <div className="calendar-export-brand">{settings.language === 'en' ? 'Week' : 'Semana'} {weekIndex + 1} / BANI VFX</div>
+              <div className="calendar-export-brand">{settings.language === 'en' ? 'Week' : 'Semana'} {weekIndex + 1}</div>
               <div className="calendar-export-days">
                 <span />
                 {week.map((day) => <strong key={day.key}>{day.label}<b>{day.day}</b></strong>)}
               </div>
               <div className="calendar-export-grid calendar-edit-export-grid">
-                <span />
                 {settings.areas.map((area) => (
                   <Fragment key={`editable-${page.key}-${weekIndex}-${area}`}>
                     <strong>{area}</strong>
@@ -1833,13 +1832,12 @@ function CalendarExportView({ budget, settings, weeks, calendarItems, exportRef 
           <CalendarMonthHeader budget={budget} settings={settings} monthTitle={page.title} compact={pageIndex > 0} />
           {page.weeks.map(({ days: week, index: weekIndex }) => (
             <div className="calendar-export-week" key={`export-week-${weekIndex}`}>
-              <div className="calendar-export-brand">{settings.language === 'en' ? 'Week' : 'Semana'} {weekIndex + 1} / BANI VFX</div>
+              <div className="calendar-export-brand">{settings.language === 'en' ? 'Week' : 'Semana'} {weekIndex + 1}</div>
               <div className="calendar-export-days">
                 <span />
                 {week.map((day) => <strong key={day.key}>{day.label}<b>{day.day}</b></strong>)}
               </div>
               <div className="calendar-export-grid">
-                <span />
                 {settings.areas.map((area) => (
                   <Fragment key={`export-${weekIndex}-${area}`}>
                     <strong>{area}</strong>

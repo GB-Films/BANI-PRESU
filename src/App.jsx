@@ -1378,6 +1378,37 @@ const calendarWeekDays = {
   es: ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'],
   en: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
 }
+const calendarMonthOptions = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
+const calendarMonthLabels = {
+  es: {
+    '01': 'Enero',
+    '02': 'Febrero',
+    '03': 'Marzo',
+    '04': 'Abril',
+    '05': 'Mayo',
+    '06': 'Junio',
+    '07': 'Julio',
+    '08': 'Agosto',
+    '09': 'Septiembre',
+    '10': 'Octubre',
+    '11': 'Noviembre',
+    '12': 'Diciembre',
+  },
+  en: {
+    '01': 'January',
+    '02': 'February',
+    '03': 'March',
+    '04': 'April',
+    '05': 'May',
+    '06': 'June',
+    '07': 'July',
+    '08': 'August',
+    '09': 'September',
+    '10': 'October',
+    '11': 'November',
+    '12': 'December',
+  },
+}
 const calendarConsiderations = {
   es: [
     { id: 'calendar-validity-es', text: 'El calendario es orientativo y queda sujeto a la entrega de materiales, aprobaciones y feedback en tiempo.', included: true },
@@ -1448,6 +1479,10 @@ function monthInputFromDate(value) {
   return (value || new Date().toISOString().slice(0, 10)).slice(0, 7)
 }
 
+function calendarYearOptions(baseYear = new Date().getFullYear()) {
+  return Array.from({ length: 9 }, (_, index) => String(baseYear - 2 + index))
+}
+
 function buildCalendarWeeks(startDate, weeks = 2, language = 'es') {
   const monday = getMonday(startDate)
   const labels = calendarWeekDays[language] || calendarWeekDays.es
@@ -1503,6 +1538,13 @@ function CalendarPlannerSection({ budget, updateBudget }) {
   const weeks = buildCalendarWeeks(settings.startDate, settings.weeks, settings.language)
   const updateSettings = (patch) => updateBudget({ calendarSettings: { ...settings, ...patch } })
   const updateCalendarMonth = (month) => updateSettings({ month, startDate: firstMondayOfMonth(month) })
+  const [selectedYear, selectedMonth] = settings.month.split('-')
+  const yearOptions = calendarYearOptions(Number(selectedYear || new Date().getFullYear()))
+  const updateCalendarMonthPart = (part, value) => {
+    const nextYear = part === 'year' ? value : selectedYear
+    const nextMonth = part === 'month' ? value : selectedMonth
+    updateCalendarMonth(`${nextYear}-${nextMonth}`)
+  }
   const updateCalendarConsideration = (id, patch) => {
     updateSettings({
       considerations: settings.considerations.map((item) => (item.id === id ? { ...item, ...patch } : item)),
@@ -1601,7 +1643,8 @@ function CalendarPlannerSection({ budget, updateBudget }) {
       <p className="muted-copy">Defini fecha de inicio y semanas. La grilla se arma sola por dias habiles; vos completas las tareas por area.</p>
       <div className="form-grid">
         <Input label="Titulo calendario" value={settings.title} onChange={(v) => updateSettings({ title: v })} />
-        <Input type="month" label="Mes calendario" value={settings.month} onChange={updateCalendarMonth} />
+        <Select label="Mes calendario" value={selectedMonth} options={calendarMonthOptions} labels={calendarMonthLabels[settings.language] || calendarMonthLabels.es} onChange={(v) => updateCalendarMonthPart('month', v)} />
+        <Select label="Ano" value={selectedYear} options={yearOptions} onChange={(v) => updateCalendarMonthPart('year', v)} />
         <Input type="number" label="Cantidad de semanas" value={settings.weeks} onChange={(v) => updateSettings({ weeks: Math.max(1, Math.min(8, Number(v || 1))) })} />
         <Select label="Idioma calendario" value={settings.language} options={['es', 'en']} labels={{ es: 'Castellano', en: 'English' }} onChange={(v) => updateSettings({ language: v, considerations: calendarConsiderations[v], taskPresets: defaultCalendarTaskPresets[v] })} />
       </div>

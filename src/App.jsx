@@ -1504,22 +1504,29 @@ function monthNameFromDate(value, language = 'es') {
   return date.toLocaleDateString(language === 'en' ? 'en-US' : 'es-AR', { month: 'long' }).toUpperCase()
 }
 
+function dominantMonthKeyForWeek(week) {
+  const counts = week.reduce((acc, day) => {
+    const monthKey = day.key.slice(0, 7)
+    acc[monthKey] = (acc[monthKey] || 0) + 1
+    return acc
+  }, {})
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || week[0]?.key?.slice(0, 7)
+}
+
 function groupWeeksByMonth(weeks, language = 'es') {
   const groups = new Map()
 
   weeks.forEach((week, index) => {
-    const visibleMonthKeys = Array.from(new Set(week.map((day) => day.key.slice(0, 7))))
-    visibleMonthKeys.forEach((monthKey) => {
-      if (!groups.has(monthKey)) {
-        groups.set(monthKey, {
-          key: monthKey,
-          monthKey,
-          title: monthNameFromDate(`${monthKey}-01`, language),
-          weeks: [],
-        })
-      }
-      groups.get(monthKey).weeks.push({ index, days: week })
-    })
+    const monthKey = dominantMonthKeyForWeek(week)
+    if (!groups.has(monthKey)) {
+      groups.set(monthKey, {
+        key: monthKey,
+        monthKey,
+        title: monthNameFromDate(`${monthKey}-01`, language),
+        weeks: [],
+      })
+    }
+    groups.get(monthKey).weeks.push({ index, days: week })
   })
 
   return Array.from(groups.values())
@@ -1769,45 +1776,25 @@ function CalendarEditableView({ budget, settings, weeks, findCell, updateCell, a
             <div className="calendar-export-week calendar-live-week" key={`editable-week-${page.key}-${weekIndex}`}>
               <div className="calendar-export-days">
                 <span />
-                {week.map((day) => {
-                  const isOutsideMonth = !day.key.startsWith(page.monthKey)
-                  return (
-                    <strong className={isOutsideMonth ? 'outside-month' : ''} key={day.key}>
-                      {isOutsideMonth ? '' : day.label}
-                    </strong>
-                  )
-                })}
+                {week.map((day) => <strong key={day.key}>{day.label}</strong>)}
               </div>
               <div className="calendar-export-brand">{settings.language === 'en' ? 'Week' : 'Semana'} {weekIndex + 1} / BANI VFX</div>
               <div className="calendar-export-grid calendar-edit-export-grid">
                 <span />
-                {week.map((day) => {
-                  const isOutsideMonth = !day.key.startsWith(page.monthKey)
-                  return (
-                    <b className={isOutsideMonth ? 'outside-month' : ''} key={day.key}>
-                      {isOutsideMonth ? '' : day.day}
-                    </b>
-                  )
-                })}
+                {week.map((day) => <b key={day.key}>{day.day}</b>)}
                 {settings.areas.map((area) => (
                   <Fragment key={`editable-${page.key}-${weekIndex}-${area}`}>
                     <strong>{area}</strong>
                     {week.map((day) => {
-                      const isOutsideMonth = !day.key.startsWith(page.monthKey)
                       const cell = findCell(area, day.key)
                       return (
                         <textarea
-                          className={isOutsideMonth ? 'outside-month' : ''}
-                          disabled={isOutsideMonth}
                           key={`${area}-${day.key}`}
-                          value={isOutsideMonth ? '' : (cell?.task || '')}
+                          value={cell?.task || ''}
                           onChange={(event) => updateCell(area, day.key, event.target.value)}
-                          onDragOver={(event) => {
-                            if (!isOutsideMonth) event.preventDefault()
-                          }}
+                          onDragOver={(event) => event.preventDefault()}
                           onDrop={(event) => {
                             event.preventDefault()
-                            if (isOutsideMonth) return
                             const text = event.dataTransfer.getData('text/plain')
                             if (text) appendTaskToCell(area, day.key, text)
                           }}
@@ -1866,37 +1853,16 @@ function CalendarExportView({ budget, settings, weeks, calendarItems, exportRef 
             <div className="calendar-export-week" key={`export-week-${weekIndex}`}>
               <div className="calendar-export-days">
                 <span />
-                {week.map((day) => {
-                  const isOutsideMonth = !day.key.startsWith(page.monthKey)
-                  return (
-                    <strong className={isOutsideMonth ? 'outside-month' : ''} key={day.key}>
-                      {isOutsideMonth ? '' : day.label}
-                    </strong>
-                  )
-                })}
+                {week.map((day) => <strong key={day.key}>{day.label}</strong>)}
               </div>
               <div className="calendar-export-brand">{settings.language === 'en' ? 'Week' : 'Semana'} {weekIndex + 1} / BANI VFX</div>
               <div className="calendar-export-grid">
                 <span />
-                {week.map((day) => {
-                  const isOutsideMonth = !day.key.startsWith(page.monthKey)
-                  return (
-                    <b className={isOutsideMonth ? 'outside-month' : ''} key={day.key}>
-                      {isOutsideMonth ? '' : day.day}
-                    </b>
-                  )
-                })}
+                {week.map((day) => <b key={day.key}>{day.day}</b>)}
                 {settings.areas.map((area) => (
                   <Fragment key={`export-${weekIndex}-${area}`}>
                     <strong>{area}</strong>
-                    {week.map((day) => {
-                      const isOutsideMonth = !day.key.startsWith(page.monthKey)
-                      return (
-                        <p className={isOutsideMonth ? 'outside-month' : ''} key={`${area}-${day.key}`}>
-                          {isOutsideMonth ? '' : taskFor(area, day.key)}
-                        </p>
-                      )
-                    })}
+                    {week.map((day) => <p key={`${area}-${day.key}`}>{taskFor(area, day.key)}</p>)}
                   </Fragment>
                 ))}
               </div>

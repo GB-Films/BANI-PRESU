@@ -175,7 +175,12 @@ const appUsers = {
   crew: { password: 'crew', role: 'producer', label: 'Crew / Productor' },
 }
 
-const confirmDelete = (label = 'este item') => window.confirm(`Seguro que queres eliminar ${label}?`)
+let requestDeleteConfirmation = null
+const confirmDelete = (label = 'este item') => (
+  requestDeleteConfirmation
+    ? requestDeleteConfirmation(label)
+    : Promise.resolve(window.confirm(`Seguro que queres eliminar ${label}?`))
+)
 
 function App() {
   const [budgets, setBudgets] = useState(() => {
@@ -192,7 +197,9 @@ function App() {
   const [pricingDirty, setPricingDirty] = useState(false)
   const [pricingStatus, setPricingStatus] = useState(() => loadPricingCatalog(null) ? 'Valores guardados' : 'Valores base publicados')
   const [pricingPrompt, setPricingPrompt] = useState(null)
+  const [deletePrompt, setDeletePrompt] = useState(null)
   const pricingPromptResolver = useRef(null)
+  const deletePromptResolver = useRef(null)
   const savedPricingCatalog = useRef(mergePricingCatalog(loadPricingCatalog(null) || defaultPricingCatalog))
   const exportRef = useRef(null)
 
@@ -261,6 +268,19 @@ function App() {
     return () => window.removeEventListener('beforeunload', warnBeforeUnload)
   }, [pricingDirty])
 
+  useEffect(() => {
+    requestDeleteConfirmation = (label) => new Promise((resolve) => {
+      deletePromptResolver.current = resolve
+      setDeletePrompt({
+        title: 'Eliminar',
+        body: `Seguro que queres eliminar ${label}?`,
+      })
+    })
+    return () => {
+      requestDeleteConfirmation = null
+    }
+  }, [])
+
   const handleSavePricingCatalog = () => {
     savePricingCatalog(pricingCatalog)
     savedPricingCatalog.current = pricingCatalog
@@ -296,6 +316,12 @@ function App() {
       return true
     }
     return false
+  }
+
+  const resolveDeletePrompt = (result) => {
+    deletePromptResolver.current?.(result)
+    deletePromptResolver.current = null
+    setDeletePrompt(null)
   }
 
   const goToSection = async (nextSection) => {
@@ -348,8 +374,8 @@ function App() {
     })
   }
 
-  const removeRow = (collection, id) => {
-    if (!confirmDelete('esta fila')) return
+  const removeRow = async (collection, id) => {
+    if (!(await confirmDelete('esta fila'))) return
     updateBudget({ [collection]: budget[collection].filter((row) => row.id !== id) })
   }
 
@@ -385,8 +411,8 @@ function App() {
     goToSection('project')
   }
 
-  const deleteBudget = (id) => {
-    if (!confirmDelete('este presupuesto')) return
+  const deleteBudget = async (id) => {
+    if (!(await confirmDelete('este presupuesto'))) return
     if (budgets.length === 1) {
       const fresh = createBudget()
       setBudgets([fresh])
@@ -479,6 +505,7 @@ function App() {
         </main>
       </div>
       {pricingPrompt && <PricingPromptModal prompt={pricingPrompt} onSave={() => resolvePricingPrompt('save')} onDiscard={() => resolvePricingPrompt('discard')} />}
+      {deletePrompt && <DeleteConfirmModal prompt={deletePrompt} onConfirm={() => resolveDeletePrompt(true)} onCancel={() => resolveDeletePrompt(false)} />}
     </>
   )
 }
@@ -493,6 +520,22 @@ function PricingPromptModal({ prompt, onSave, onDiscard }) {
         <div className="modal-actions">
           <button className="primary" onClick={onSave}>Aceptar</button>
           <button className="ghost" onClick={onDiscard}>Cancelar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DeleteConfirmModal({ prompt, onConfirm, onCancel }) {
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <div className="bani-modal delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-prompt-title">
+        <p className="eyebrow">Confirmar accion</p>
+        <h2 id="delete-prompt-title">{prompt.title}</h2>
+        <p>{prompt.body}</p>
+        <div className="modal-actions">
+          <button className="primary danger-action" onClick={onConfirm}>Eliminar</button>
+          <button className="ghost" onClick={onCancel}>Cancelar</button>
         </div>
       </div>
     </div>
@@ -729,8 +772,8 @@ function BallparkProposalStep({ budget, updateNested }) {
       includedWorks: [...includedWorks, { id: crypto.randomUUID(), text: 'Nuevo trabajo incluido', included: true }],
     })
   }
-  const removeWork = (id) => {
-    if (!confirmDelete('este trabajo incluido')) return
+  const removeWork = async (id) => {
+    if (!(await confirmDelete('este trabajo incluido'))) return
     updateSpec({
       includedWorks: includedWorks.filter((item) => item.id !== id),
     })
@@ -1203,8 +1246,8 @@ function CalendarSection({ budget, updateBudget }) {
   const addCalendarRow = (preset = {}) => {
     updateBudget({ calendarItems: [...calendarItems, createCalendarItem(preset)] })
   }
-  const removeCalendarRow = (id) => {
-    if (!confirmDelete('esta etapa del calendario')) return
+  const removeCalendarRow = async (id) => {
+    if (!(await confirmDelete('esta etapa del calendario'))) return
     updateBudget({ calendarItems: calendarItems.filter((item) => item.id !== id) })
   }
   const duplicateCalendarRow = (row) => {
@@ -1405,8 +1448,8 @@ function CalendarPlannerSection({ budget, updateBudget }) {
       considerations: [...settings.considerations, { id: crypto.randomUUID(), text: settings.language === 'en' ? 'New consideration' : 'Nueva consideracion', included: true }],
     })
   }
-  const removeCalendarConsideration = (id) => {
-    if (!confirmDelete(settings.language === 'en' ? 'this consideration' : 'esta consideracion')) return
+  const removeCalendarConsideration = async (id) => {
+    if (!(await confirmDelete(settings.language === 'en' ? 'this consideration' : 'esta consideracion'))) return
     updateSettings({ considerations: settings.considerations.filter((item) => item.id !== id) })
   }
   const addTaskPreset = () => {
@@ -1453,8 +1496,8 @@ function CalendarPlannerSection({ budget, updateBudget }) {
     ].filter(Boolean)
     updateBudget({ calendarItems: generated })
   }
-  const clearCalendar = () => {
-    if (!confirmDelete('el calendario completo')) return
+  const clearCalendar = async () => {
+    if (!(await confirmDelete('el calendario completo'))) return
     updateBudget({ calendarItems: [] })
   }
   const exportCalendarImage = async () => {
@@ -1691,8 +1734,8 @@ function ConsiderationsPanel({ budget, updateNested }) {
       considerations: [...considerations, { id: crypto.randomUUID(), text: 'Nueva consideracion', included: true }],
     })
   }
-  const removeConsideration = (id) => {
-    if (!confirmDelete('esta consideracion')) return
+  const removeConsideration = async (id) => {
+    if (!(await confirmDelete('esta consideracion'))) return
     updateNested('notes', {
       considerations: considerations.filter((item) => item.id !== id),
     })
@@ -1907,8 +1950,8 @@ function AdminSection({ pricingCatalog, setPricingCatalog, markDirty, onSave, pr
     }))
   }
 
-  const removeCatalogRow = (collection, index) => {
-    if (!confirmDelete('esta fila')) return
+  const removeCatalogRow = async (collection, index) => {
+    if (!(await confirmDelete('esta fila'))) return
     updateCatalog((catalog) => ({
       ...catalog,
       [collection]: catalog[collection].filter((_, itemIndex) => itemIndex !== index),

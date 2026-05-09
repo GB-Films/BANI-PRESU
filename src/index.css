@@ -1502,6 +1502,15 @@ h3 {
   margin-top: 24px;
 }
 
+.delete-modal {
+  border-color: rgba(230, 30, 110, 0.58);
+}
+
+.danger-action {
+  background: var(--bani-pink);
+  color: #fff;
+}
+
 .considerations-panel,
 .billing-panel {
   display: grid;

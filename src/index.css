@@ -903,8 +903,8 @@ h3 {
 
 .calendar-export-title h4 {
   margin: 0 0 10px;
-  color: #f4f4f4;
-  font-size: 40px;
+  color: var(--bani-pink);
+  font-size: 58px;
   font-style: italic;
   line-height: 1;
   text-transform: uppercase;
@@ -933,7 +933,7 @@ h3 {
 
 .calendar-export-month-heading strong {
   color: var(--bani-pink);
-  font-size: 64px;
+  font-size: 72px;
   font-style: italic;
   line-height: 1;
 }
@@ -1008,6 +1008,12 @@ h3 {
 
 .calendar-export-grid > span {
   background: #151515;
+}
+
+.calendar-export-days .outside-month,
+.calendar-export-grid > .outside-month {
+  background: rgba(255, 255, 255, 0.018);
+  color: transparent;
 }
 
 .calendar-export-notes {

@@ -1505,16 +1505,24 @@ function monthNameFromDate(value, language = 'es') {
 }
 
 function groupWeeksByMonth(weeks, language = 'es') {
-  return weeks.reduce((groups, week, index) => {
-    const monthKey = week[0]?.key?.slice(0, 7) || `month-${index}`
-    const existing = groups.find((group) => group.key === monthKey)
-    const weekData = { index, days: week }
-    if (existing) {
-      existing.weeks.push(weekData)
-      return groups
-    }
-    return [...groups, { key: monthKey, title: monthNameFromDate(`${monthKey}-01`, language), weeks: [weekData] }]
-  }, [])
+  const groups = new Map()
+
+  weeks.forEach((week, index) => {
+    const visibleMonthKeys = Array.from(new Set(week.map((day) => day.key.slice(0, 7))))
+    visibleMonthKeys.forEach((monthKey) => {
+      if (!groups.has(monthKey)) {
+        groups.set(monthKey, {
+          key: monthKey,
+          monthKey,
+          title: monthNameFromDate(`${monthKey}-01`, language),
+          weeks: [],
+        })
+      }
+      groups.get(monthKey).weeks.push({ index, days: week })
+    })
+  })
+
+  return Array.from(groups.values())
 }
 
 function paginateCalendarWeeks(weeks, language = 'es', maxWeeksPerPage = 3) {
@@ -1788,16 +1796,37 @@ function CalendarExportView({ budget, settings, weeks, calendarItems, exportRef 
             <div className="calendar-export-week" key={`export-week-${weekIndex}`}>
               <div className="calendar-export-days">
                 <span />
-                {week.map((day) => <strong key={day.key}>{day.label}</strong>)}
+                {week.map((day) => {
+                  const isOutsideMonth = !day.key.startsWith(page.monthKey)
+                  return (
+                    <strong className={isOutsideMonth ? 'outside-month' : ''} key={day.key}>
+                      {isOutsideMonth ? '' : day.label}
+                    </strong>
+                  )
+                })}
               </div>
               <div className="calendar-export-brand">{settings.language === 'en' ? 'Week' : 'Semana'} {weekIndex + 1} / BANI VFX</div>
               <div className="calendar-export-grid">
                 <span />
-                {week.map((day) => <b key={day.key}>{day.day}</b>)}
+                {week.map((day) => {
+                  const isOutsideMonth = !day.key.startsWith(page.monthKey)
+                  return (
+                    <b className={isOutsideMonth ? 'outside-month' : ''} key={day.key}>
+                      {isOutsideMonth ? '' : day.day}
+                    </b>
+                  )
+                })}
                 {settings.areas.map((area) => (
                   <Fragment key={`export-${weekIndex}-${area}`}>
                     <strong>{area}</strong>
-                    {week.map((day) => <p key={`${area}-${day.key}`}>{taskFor(area, day.key)}</p>)}
+                    {week.map((day) => {
+                      const isOutsideMonth = !day.key.startsWith(page.monthKey)
+                      return (
+                        <p className={isOutsideMonth ? 'outside-month' : ''} key={`${area}-${day.key}`}>
+                          {isOutsideMonth ? '' : taskFor(area, day.key)}
+                        </p>
+                      )
+                    })}
                   </Fragment>
                 ))}
               </div>

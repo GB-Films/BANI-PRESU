@@ -874,38 +874,41 @@ h3 {
 
 .calendar-export-header {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 36px;
-  padding-bottom: 28px;
-  margin-bottom: 30px;
+  padding-bottom: 34px;
+  margin-bottom: 34px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .calendar-export-lockup {
   display: flex;
   align-items: center;
-  gap: 20px;
+  justify-content: flex-end;
+  gap: 24px;
+  padding-top: 8px;
+  text-align: left;
 }
 
 .calendar-export-lockup img {
-  width: 96px;
-  height: 96px;
+  width: 118px;
+  height: 118px;
   object-fit: cover;
-  border-radius: 18px;
+  border-radius: 22px;
   background: #000;
 }
 
 .calendar-export-lockup strong {
   display: block;
-  font-size: 34px;
+  font-size: 46px;
   font-style: italic;
   font-weight: 950;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .calendar-export-lockup span,
-.calendar-export-title span,
 .calendar-export-title h3 {
   color: #8c8c8c;
   font-size: 13px;
@@ -915,35 +918,29 @@ h3 {
 }
 
 .calendar-export-title {
-  text-align: right;
-}
-
-.calendar-export-title p {
-  margin: 0 0 8px;
-  color: #a8a8a8;
-  font-size: 18px;
-  font-weight: 700;
+  text-align: left;
 }
 
 .calendar-export-title h4 {
-  margin: 0 0 10px;
+  margin: 0 0 28px;
   color: var(--bani-pink);
-  font-size: 58px;
+  font-size: 82px;
   font-style: italic;
   line-height: 1;
   text-transform: uppercase;
 }
 
 .calendar-export-title h2 {
-  margin: 0;
+  margin: 0 0 14px;
   color: var(--bani-pink);
-  font-size: 48px;
+  font-size: 54px;
   font-style: italic;
   line-height: 1;
+  text-transform: uppercase;
 }
 
 .calendar-export-title h3 {
-  margin: 12px 0 0;
+  margin: 7px 0 0;
   color: #d8d8d8;
 }
 

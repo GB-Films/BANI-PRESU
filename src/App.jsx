@@ -1741,37 +1741,12 @@ function CalendarPlannerSection({ budget, updateBudget }) {
 
 function CalendarEditableView({ budget, settings, weeks, findCell, updateCell, appendTaskToCell }) {
   const exportPages = paginateCalendarWeeks(weeks, settings.language)
-  const titleLabel = settings.language === 'en' ? 'Schedule' : 'Calendario'
-  const finalClientLabel = settings.language === 'en' ? 'Final client' : 'Cliente final'
-  const clientLabel = settings.language === 'en' ? 'Client' : 'Cliente'
 
   return (
     <div className="calendar-export-page calendar-live-preview">
-      {exportPages.map((page, pageIndex) => (
+      {exportPages.map((page) => (
         <section className="calendar-export-month-page" key={`editable-${page.key}`}>
-          {pageIndex === 0 ? (
-            <header className="calendar-export-header">
-              <div className="calendar-export-lockup">
-                <img src={`${assetBase}monograma-negativo-perfil.jpg`} alt="BANI VFX" />
-                <div>
-                  <strong>BANI VFX</strong>
-                  <span>{titleLabel}</span>
-                </div>
-              </div>
-              <div className="calendar-export-title">
-                <p>{settings.title || budget.projectName}</p>
-                <h4>{page.title}</h4>
-                {budget.finalClient && <h2>{budget.finalClient}</h2>}
-                {budget.client && <h3>{clientLabel}: {budget.client}</h3>}
-                {!budget.finalClient && <h2>{budget.projectName}</h2>}
-                {budget.finalClient && <span>{finalClientLabel}</span>}
-              </div>
-            </header>
-          ) : (
-            <div className="calendar-export-month-heading">
-              <strong>{page.title}</strong>
-            </div>
-          )}
+          <CalendarMonthHeader budget={budget} settings={settings} monthTitle={page.title} />
           {page.weeks.map(({ days: week, index: weekIndex }) => (
             <div className="calendar-export-week calendar-live-week" key={`editable-week-${page.key}-${weekIndex}`}>
               <div className="calendar-export-days">
@@ -1813,42 +1788,42 @@ function CalendarEditableView({ budget, settings, weeks, findCell, updateCell, a
   )
 }
 
+function CalendarMonthHeader({ budget, settings, monthTitle }) {
+  const titleLabel = settings.language === 'en' ? 'Schedule' : 'Calendario'
+  const finalClientLabel = settings.language === 'en' ? 'Final client' : 'Cliente final'
+  const clientLabel = settings.language === 'en' ? 'Client' : 'Cliente'
+  const projectTitle = settings.title || budget.projectName
+
+  return (
+    <header className="calendar-export-header">
+      <div className="calendar-export-title">
+        <h4>{monthTitle}</h4>
+        <h2>{projectTitle}</h2>
+        {budget.finalClient && <h3>{finalClientLabel}: {budget.finalClient}</h3>}
+        {budget.client && <h3>{clientLabel}: {budget.client}</h3>}
+      </div>
+      <div className="calendar-export-lockup">
+        <img src={`${assetBase}monograma-negativo-perfil.jpg`} alt="BANI VFX" />
+        <div>
+          <strong>BANI VFX</strong>
+          <span>{titleLabel}</span>
+        </div>
+      </div>
+    </header>
+  )
+}
+
 function CalendarExportView({ budget, settings, weeks, calendarItems, exportRef }) {
   const taskFor = (area, date) => calendarItems.find((item) => item.included && item.area === area && item.date === date)?.task || '-'
   const visibleConsiderations = (settings.considerations || []).filter((item) => item.included && item.text)
   const exportPages = paginateCalendarWeeks(weeks, settings.language)
-  const titleLabel = settings.language === 'en' ? 'Schedule' : 'Calendario'
-  const finalClientLabel = settings.language === 'en' ? 'Final client' : 'Cliente final'
-  const clientLabel = settings.language === 'en' ? 'Client' : 'Cliente'
   const considerationsLabel = settings.language === 'en' ? 'Considerations' : 'Consideraciones'
 
   return (
     <div className="calendar-export-page" ref={exportRef}>
       {exportPages.map((page, pageIndex) => (
         <section className="calendar-export-month-page" key={page.key}>
-          {pageIndex === 0 ? (
-            <header className="calendar-export-header">
-              <div className="calendar-export-lockup">
-                <img src={`${assetBase}monograma-negativo-perfil.jpg`} alt="BANI VFX" />
-                <div>
-                  <strong>BANI VFX</strong>
-                  <span>{titleLabel}</span>
-                </div>
-              </div>
-              <div className="calendar-export-title">
-                <p>{settings.title || budget.projectName}</p>
-                <h4>{page.title}</h4>
-                {budget.finalClient && <h2>{budget.finalClient}</h2>}
-                {budget.client && <h3>{clientLabel}: {budget.client}</h3>}
-                {!budget.finalClient && <h2>{budget.projectName}</h2>}
-                {budget.finalClient && <span>{finalClientLabel}</span>}
-              </div>
-            </header>
-          ) : (
-            <div className="calendar-export-month-heading">
-              <strong>{page.title}</strong>
-            </div>
-          )}
+          <CalendarMonthHeader budget={budget} settings={settings} monthTitle={page.title} />
           {page.weeks.map(({ days: week, index: weekIndex }) => (
             <div className="calendar-export-week" key={`export-week-${weekIndex}`}>
               <div className="calendar-export-days">

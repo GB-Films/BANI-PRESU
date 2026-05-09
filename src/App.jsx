@@ -1642,12 +1642,13 @@ function CalendarPlannerSection({ budget, updateBudget }) {
     const targets = pages.length ? pages : [calendarRef.current]
     let pdf = null
     for (const [index, page] of targets.entries()) {
-      const canvas = await html2canvas(page, { backgroundColor: '#080808', scale: 2 })
+      const canvas = await html2canvas(page, { backgroundColor: '#080808', scale: 2, windowWidth: page.scrollWidth, windowHeight: page.scrollHeight })
       const img = canvas.toDataURL('image/png')
+      const orientation = canvas.width >= canvas.height ? 'landscape' : 'portrait'
       if (!pdf) {
-        pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas.width, canvas.height] })
+        pdf = new jsPDF({ orientation, unit: 'px', format: [canvas.width, canvas.height] })
       } else {
-        pdf.addPage([canvas.width, canvas.height], 'landscape')
+        pdf.addPage([canvas.width, canvas.height], orientation)
       }
       pdf.addImage(img, 'PNG', 0, 0, canvas.width, canvas.height)
       if (index === targets.length - 1) pdf.save(`${budget.budgetNumber}-calendario.pdf`)

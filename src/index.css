@@ -835,6 +835,16 @@ h3 {
   font-family: inherit;
 }
 
+.calendar-live-preview {
+  position: static;
+  left: auto;
+  top: auto;
+  width: 100%;
+  display: grid;
+  gap: 28px;
+  background: transparent;
+}
+
 .calendar-export-month-page {
   width: 1500px;
   min-height: 900px;
@@ -844,8 +854,22 @@ h3 {
   page-break-after: always;
 }
 
+.calendar-live-preview .calendar-export-month-page {
+  width: 100%;
+  min-height: auto;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: #080808;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+}
+
 .calendar-export-month-page + .calendar-export-month-page {
   margin-top: 28px;
+}
+
+.calendar-live-preview .calendar-export-month-page + .calendar-export-month-page {
+  margin-top: 0;
 }
 
 .calendar-export-header {
@@ -1014,6 +1038,35 @@ h3 {
 .calendar-export-grid > .outside-month {
   background: rgba(255, 255, 255, 0.018);
   color: transparent;
+}
+
+.calendar-edit-export-grid > textarea {
+  min-height: 66px;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 0;
+  background: #0b0b0b;
+  color: #f3f3f3;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.35;
+  resize: vertical;
+  text-align: center;
+  white-space: pre-line;
+}
+
+.calendar-edit-export-grid > textarea:focus {
+  position: relative;
+  z-index: 1;
+  border-color: rgba(230, 30, 110, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(230, 30, 110, 0.4);
+  outline: none;
+}
+
+.calendar-edit-export-grid > textarea.outside-month {
+  pointer-events: none;
+  resize: none;
 }
 
 .calendar-export-notes {

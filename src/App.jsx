@@ -1700,39 +1700,14 @@ function CalendarPlannerSection({ budget, updateBudget }) {
         <button className="ghost" onClick={fillFromBudget}><Sparkles size={16} /> Armar base automatica</button>
         <button className="ghost" onClick={clearCalendar}><Trash2 size={16} /> Limpiar calendario</button>
       </div>
-      <div className="calendar-builder">
-        {weeks.map((week, weekIndex) => (
-          <div className="calendar-edit-week" key={`edit-week-${weekIndex}`}>
-            <div className="calendar-edit-week-header">{settings.language === 'en' ? 'Week' : 'Semana'} {weekIndex + 1} / BANI VFX</div>
-            <div className="calendar-edit-grid">
-              <div />
-              {week.map((day) => <strong key={day.key}>{day.label}<span>{day.day}</span></strong>)}
-              {settings.areas.map((area) => (
-                <Fragment key={`edit-${weekIndex}-${area}`}>
-                  <b>{area}</b>
-                  {week.map((day) => {
-                    const cell = findCell(area, day.key)
-                    return (
-                      <textarea
-                        key={`${area}-${day.key}`}
-                        value={cell?.task || ''}
-                        onChange={(event) => updateCell(area, day.key, event.target.value)}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={(event) => {
-                          event.preventDefault()
-                          const text = event.dataTransfer.getData('text/plain')
-                          if (text) appendTaskToCell(area, day.key, text)
-                        }}
-                        placeholder="-"
-                      />
-                    )
-                  })}
-                </Fragment>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
+      <CalendarEditableView
+        budget={budget}
+        settings={settings}
+        weeks={weeks}
+        findCell={findCell}
+        updateCell={updateCell}
+        appendTaskToCell={appendTaskToCell}
+      />
       <div className="considerations-panel calendar-considerations">
         <div className="admin-block-header">
           <div>
@@ -1753,6 +1728,100 @@ function CalendarPlannerSection({ budget, updateBudget }) {
       </div>
       <CalendarExportView budget={budget} settings={settings} weeks={weeks} calendarItems={calendarItems} exportRef={calendarRef} />
     </section>
+  )
+}
+
+function CalendarEditableView({ budget, settings, weeks, findCell, updateCell, appendTaskToCell }) {
+  const exportPages = paginateCalendarWeeks(weeks, settings.language)
+  const titleLabel = settings.language === 'en' ? 'Schedule' : 'Calendario'
+  const finalClientLabel = settings.language === 'en' ? 'Final client' : 'Cliente final'
+  const clientLabel = settings.language === 'en' ? 'Client' : 'Cliente'
+
+  return (
+    <div className="calendar-export-page calendar-live-preview">
+      {exportPages.map((page, pageIndex) => (
+        <section className="calendar-export-month-page" key={`editable-${page.key}`}>
+          {pageIndex === 0 ? (
+            <header className="calendar-export-header">
+              <div className="calendar-export-lockup">
+                <img src={`${assetBase}monograma-negativo-perfil.jpg`} alt="BANI VFX" />
+                <div>
+                  <strong>BANI VFX</strong>
+                  <span>{titleLabel}</span>
+                </div>
+              </div>
+              <div className="calendar-export-title">
+                <p>{settings.title || budget.projectName}</p>
+                <h4>{page.title}</h4>
+                {budget.finalClient && <h2>{budget.finalClient}</h2>}
+                {budget.client && <h3>{clientLabel}: {budget.client}</h3>}
+                {!budget.finalClient && <h2>{budget.projectName}</h2>}
+                {budget.finalClient && <span>{finalClientLabel}</span>}
+              </div>
+            </header>
+          ) : (
+            <div className="calendar-export-month-heading">
+              <strong>{page.title}</strong>
+            </div>
+          )}
+          {page.weeks.map(({ days: week, index: weekIndex }) => (
+            <div className="calendar-export-week calendar-live-week" key={`editable-week-${page.key}-${weekIndex}`}>
+              <div className="calendar-export-days">
+                <span />
+                {week.map((day) => {
+                  const isOutsideMonth = !day.key.startsWith(page.monthKey)
+                  return (
+                    <strong className={isOutsideMonth ? 'outside-month' : ''} key={day.key}>
+                      {isOutsideMonth ? '' : day.label}
+                    </strong>
+                  )
+                })}
+              </div>
+              <div className="calendar-export-brand">{settings.language === 'en' ? 'Week' : 'Semana'} {weekIndex + 1} / BANI VFX</div>
+              <div className="calendar-export-grid calendar-edit-export-grid">
+                <span />
+                {week.map((day) => {
+                  const isOutsideMonth = !day.key.startsWith(page.monthKey)
+                  return (
+                    <b className={isOutsideMonth ? 'outside-month' : ''} key={day.key}>
+                      {isOutsideMonth ? '' : day.day}
+                    </b>
+                  )
+                })}
+                {settings.areas.map((area) => (
+                  <Fragment key={`editable-${page.key}-${weekIndex}-${area}`}>
+                    <strong>{area}</strong>
+                    {week.map((day) => {
+                      const isOutsideMonth = !day.key.startsWith(page.monthKey)
+                      const cell = findCell(area, day.key)
+                      return (
+                        <textarea
+                          className={isOutsideMonth ? 'outside-month' : ''}
+                          disabled={isOutsideMonth}
+                          key={`${area}-${day.key}`}
+                          value={isOutsideMonth ? '' : (cell?.task || '')}
+                          onChange={(event) => updateCell(area, day.key, event.target.value)}
+                          onDragOver={(event) => {
+                            if (!isOutsideMonth) event.preventDefault()
+                          }}
+                          onDrop={(event) => {
+                            event.preventDefault()
+                            if (isOutsideMonth) return
+                            const text = event.dataTransfer.getData('text/plain')
+                            if (text) appendTaskToCell(area, day.key, text)
+                          }}
+                          placeholder="-"
+                        />
+                      )
+                    })}
+                  </Fragment>
+                ))}
+              </div>
+            </div>
+          ))}
+        </section>
+      ))}
+    </div>
   )
 }
 

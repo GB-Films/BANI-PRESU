@@ -91,6 +91,12 @@ export const createBudget = () => ({
     startDate: new Date().toISOString().slice(0, 10),
     weeks: 2,
     areas: ['POST', 'VFX', '3D', 'ENTREGAS'],
+    language: 'es',
+    considerations: [
+      { id: 'calendar-validity-es', text: 'El calendario es orientativo y queda sujeto a la entrega de materiales, aprobaciones y feedback en tiempo.', included: true },
+      { id: 'calendar-review-es', text: 'Las fechas pueden ajustarse si cambia el alcance, los entregables o la complejidad de las tareas.', included: true },
+      { id: 'calendar-client-es', text: 'Los envios y revisiones con cliente se coordinan segun disponibilidad de ambas partes.', included: false },
+    ],
   },
   teamMembers: [
     createTeamMember({ role: 'VFX Supervisor', area: 'Supervision', dayRate: 650, days: 2 }),

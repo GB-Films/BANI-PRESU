@@ -14,7 +14,11 @@ import {
   GripVertical,
   Lock,
   LogOut,
+  Mail,
+  MessageSquareText,
   Plus,
+  RotateCcw,
+  Send,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -42,20 +46,26 @@ import {
   isCloudStorageEnabled,
   loadBudgets,
   loadCurrentId,
+  loadMessagesState,
   loadPricingCatalog,
   loadSession,
   loadSharedBudgets,
+  loadSharedMessagesState,
   loadSharedPricingCatalog,
   saveBudgets,
   saveCurrentId,
+  saveMessagesState,
   savePricingCatalog,
   saveSession,
   saveSharedBudgets,
+  saveSharedMessagesState,
   saveSharedPricingCatalog,
 } from './lib/storage'
 
 const navItems = [
   ['dashboard', 'Presupuestos'],
+  ['calendars', 'Calendarios'],
+  ['messages', 'Mensajes'],
   ['brand', 'Marca'],
   ['admin', 'Admin'],
 ]
@@ -75,6 +85,68 @@ const defaultPricingCatalog = {
     { key: 'ia', name: 'IA', description: 'Jornadas de IA', unitValue: 440 },
   ],
 }
+const messageStatusOptions = [
+  { key: 'post', es: 'en proceso de postproduccion', en: 'in postproduction' },
+  { key: 'offline', es: 'en edicion offline', en: 'in offline edit' },
+  { key: 'color', es: 'en color', en: 'in color' },
+  { key: 'sound', es: 'en sonido', en: 'in sound' },
+  { key: 'vfx', es: 'en VFX', en: 'in VFX' },
+  { key: 'internal', es: 'en revision interna', en: 'in internal review' },
+  { key: 'client-review', es: 'listo para revision del cliente', en: 'ready for client review' },
+  { key: 'masters', es: 'aprobado y preparando masters', en: 'approved and preparing masters' },
+]
+const defaultMessageFields = {
+  client: 'Cliente',
+  project: 'Proyecto',
+  piece: 'Video principal',
+  statusKey: 'post',
+  deliveryDate: 'viernes',
+  reviewRound: 'primera vuelta',
+  link: '',
+  notes: 'Estamos cuidando ritmo, color y terminacion general.',
+  nextStep: 'Nos avisan cualquier ajuste y avanzamos con la siguiente version.',
+  sender: 'Equipo BANI',
+}
+const defaultMessageTemplates = [
+  {
+    id: 'estado-video',
+    title: 'Estado de video',
+    category: 'Seguimiento',
+    channel: 'WhatsApp',
+    tone: 'Claro y profesional',
+    body: 'Hola {client}, como estas?\n\nLes compartimos una actualizacion de {project} / {piece}. El material esta {status} y venimos trabajando sobre la {reviewRound}.\n\nFecha estimada: {deliveryDate}.\n\n{notes}\n\n{nextStep}\n\nLink: {link}\n\n{sender}',
+  },
+  {
+    id: 'envio-revision',
+    title: 'Envio para revision',
+    category: 'Revision cliente',
+    channel: 'WhatsApp',
+    tone: 'Directo',
+    body: 'Hola {client}, como estas?\n\nLes dejamos el envio de {project} / {piece} para revision:\n{link}\n\nQuedamos atentos a comentarios para avanzar con la proxima version.\n\n{sender}',
+  },
+  {
+    id: 'aprobacion-final',
+    title: 'Aprobacion final',
+    category: 'Cierre',
+    channel: 'Mail',
+    tone: 'Formal',
+    body: 'Hola {client},\n\nConfirmamos que {project} / {piece} queda aprobado y estamos preparando los masters finales.\n\n{nextStep}\n\nGracias,\n{sender}',
+  },
+]
+const defaultMessagesState = {
+  selectedId: defaultMessageTemplates[0].id,
+  fields: defaultMessageFields,
+  templates: defaultMessageTemplates,
+  history: [],
+}
+const normalizeMessagesState = (state) => ({
+  ...defaultMessagesState,
+  ...(state || {}),
+  fields: { ...defaultMessageFields, ...(state?.fields || {}) },
+  templates: state?.templates?.length ? state.templates : defaultMessageTemplates,
+  selectedId: state?.selectedId || defaultMessageTemplates[0].id,
+  history: state?.history || [],
+})
 const mergeDayRates = (rates = []) => {
   if (!rates.length) return defaultPricingCatalog.ballparkDayRates
   const existingKeys = new Set(rates.map((rate) => String(rate.key || '').toLowerCase()))
@@ -210,6 +282,7 @@ function App() {
   const [session, setSession] = useState(() => loadSession())
   const [loginError, setLoginError] = useState('')
   const [pricingCatalog, setPricingCatalog] = useState(() => mergePricingCatalog(loadPricingCatalog(null) || defaultPricingCatalog))
+  const [messagesState, setMessagesState] = useState(() => normalizeMessagesState(loadMessagesState(defaultMessagesState)))
   const [pricingDirty, setPricingDirty] = useState(false)
   const [pricingStatus, setPricingStatus] = useState(() => loadPricingCatalog(null) ? 'Valores guardados' : 'Valores base publicados')
   const [pricingPrompt, setPricingPrompt] = useState(null)
@@ -225,7 +298,7 @@ function App() {
   const totals = useMemo(() => calculateBudget(budget), [budget])
   const userRole = session?.role || 'producer'
   const isAdmin = userRole === 'admin'
-  const visibleNavItems = isAdmin ? navItems : navItems.filter(([id]) => id === 'dashboard')
+  const visibleNavItems = isAdmin ? navItems : navItems.filter(([id]) => ['dashboard', 'calendars', 'messages'].includes(id))
 
   useEffect(() => {
     saveBudgets(budgets)
@@ -233,6 +306,13 @@ function App() {
       saveSharedBudgets(budgets).catch(() => setCloudStatus('No se pudo guardar en nube'))
     }
   }, [budgets, cloudLoaded])
+
+  useEffect(() => {
+    saveMessagesState(messagesState)
+    if (cloudLoaded && isCloudStorageEnabled()) {
+      saveSharedMessagesState(messagesState).catch(() => setCloudStatus('No se pudo guardar en nube'))
+    }
+  }, [messagesState, cloudLoaded])
 
   useEffect(() => {
     if (currentId) saveCurrentId(currentId)
@@ -243,9 +323,10 @@ function App() {
     let cancelled = false
     const hydrateCloudState = async () => {
       try {
-        const [sharedBudgets, sharedPricing] = await Promise.all([
+        const [sharedBudgets, sharedPricing, sharedMessages] = await Promise.all([
           loadSharedBudgets(),
           loadSharedPricingCatalog(),
+          loadSharedMessagesState(),
         ])
         if (cancelled) return
         if (sharedBudgets?.length) {
@@ -263,6 +344,11 @@ function App() {
         } else {
           await saveSharedPricingCatalog(pricingCatalog)
         }
+        if (sharedMessages) {
+          setMessagesState(normalizeMessagesState(sharedMessages))
+        } else {
+          await saveSharedMessagesState(messagesState)
+        }
         setCloudStatus('Nube sincronizada')
       } catch {
         if (!cancelled) setCloudStatus('Sin conexion a nube')
@@ -277,8 +363,8 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!isAdmin && section !== 'dashboard' && !wizardActive) setSection('dashboard')
-    if (isAdmin && !['dashboard', 'brand', 'admin'].includes(section)) setSection('dashboard')
+    if (!isAdmin && !['dashboard', 'calendars', 'messages'].includes(section) && !wizardActive) setSection('dashboard')
+    if (isAdmin && !['dashboard', 'calendars', 'messages', 'brand', 'admin'].includes(section)) setSection('dashboard')
   }, [isAdmin, section, wizardActive])
 
   useEffect(() => {
@@ -390,7 +476,7 @@ function App() {
 
   const goToSection = async (nextSection) => {
     if (section === 'admin' && nextSection !== 'admin' && !(await confirmPricingNavigation())) return
-    if (nextSection !== 'dashboard') setWizardActive(false)
+    setWizardActive(false)
     setSection(nextSection)
   }
 
@@ -565,6 +651,8 @@ function App() {
             />
           )}
           {!wizardActive && section === 'dashboard' && <Dashboard budgets={budgets} currentId={currentId} setCurrentId={setCurrentId} deleteBudget={deleteBudget} duplicateBudget={duplicateBudget} setSection={goToSection} onNewBudget={startNewBudget} onOpenWizard={openWizardForBudget} isAdmin={false} />}
+          {!wizardActive && section === 'calendars' && <CalendarsWorkspace budgets={budgets} currentId={currentId} setCurrentId={setCurrentId} budget={budget} updateBudget={updateBudget} onNewBudget={startNewBudget} />}
+          {!wizardActive && section === 'messages' && <MessagesSection messagesState={messagesState} setMessagesState={setMessagesState} currentBudget={budget} />}
           {!wizardActive && isAdmin && section === 'brand' && <BrandSection budget={budget} updateNested={updateNested} />}
           {!wizardActive && isAdmin && section === 'admin' && <AdminSection pricingCatalog={pricingCatalog} setPricingCatalog={setPricingCatalog} markDirty={() => setPricingDirty(true)} onSave={handleSavePricingCatalog} pricingDirty={pricingDirty} pricingStatus={pricingStatus} />}
         </main>
@@ -700,7 +788,6 @@ const wizardSteps = [
   'Tipo',
   'Desglose',
   'Resumen',
-  'Calendario',
   'Export',
 ]
 
@@ -722,8 +809,7 @@ function ProducerWizard({ budget, totals, wizardStep, setWizardStep, setWizardAc
       {wizardStep === 1 && <BudgetTypeStep budget={budget} pricingCatalog={pricingCatalog} updateBudget={updateBudget} />}
       {wizardStep === 2 && <ProjectBreakdownStep budget={budget} pricingCatalog={pricingCatalog} updateNested={updateNested} updateRow={updateRow} removeRow={removeRow} updateBudget={updateBudget} />}
       {wizardStep === 3 && <SummarySection budget={budget} totals={totals} updateNested={updateNested} isAdmin={false} />}
-      {wizardStep === 4 && <CalendarPlannerSection budget={budget} updateBudget={updateBudget} />}
-      {wizardStep === 5 && <ExportSection budget={budget} totals={totals} pricingCatalog={pricingCatalog} updateNested={updateNested} exportRef={exportRef} exportImage={exportImage} exportPdf={exportPdf} />}
+      {wizardStep === 4 && <ExportSection budget={budget} totals={totals} pricingCatalog={pricingCatalog} updateNested={updateNested} exportRef={exportRef} exportImage={exportImage} exportPdf={exportPdf} />}
 
       <div className="wizard-footer">
         <button className="ghost" onClick={goBack} disabled={wizardStep === 0}>Anterior</button>
@@ -757,6 +843,160 @@ function BudgetTypeStep({ budget, pricingCatalog, updateBudget }) {
       </div>
     </section>
   )
+}
+
+function CalendarsWorkspace({ budgets, currentId, setCurrentId, budget, updateBudget, onNewBudget }) {
+  return (
+    <div className="workspace-section">
+      <div className="dashboard-heading">
+        <SectionTitle icon={<CalendarDays />} eyebrow="Coordinacion de post" title="Calendarios" />
+        <button className="primary" onClick={onNewBudget}><Plus size={16} /> Nuevo proyecto</button>
+      </div>
+      <div className="calendar-project-switcher panel">
+        <div>
+          <p className="eyebrow">Proyecto activo</p>
+          <h3>{budget.projectName}</h3>
+        </div>
+        <Select
+          label="Cambiar proyecto"
+          value={currentId}
+          options={budgets.map((item) => item.id)}
+          labels={Object.fromEntries(budgets.map((item) => [item.id, `${item.projectName} - ${item.budgetNumber}`]))}
+          onChange={setCurrentId}
+        />
+      </div>
+      <CalendarPlannerSection budget={budget} updateBudget={updateBudget} />
+    </div>
+  )
+}
+
+function MessagesSection({ messagesState, setMessagesState, currentBudget }) {
+  const [copied, setCopied] = useState(false)
+  const templates = messagesState.templates
+  const selectedTemplate = templates.find((template) => template.id === messagesState.selectedId) || templates[0]
+  const fields = messagesState.fields
+  const status = messageStatusOptions.find((item) => item.key === fields.statusKey) || messageStatusOptions[0]
+  const preview = renderMessageTemplate(selectedTemplate.body, { ...fields, status: status.es })
+  const updateFields = (patch) => setMessagesState((state) => ({ ...state, fields: { ...state.fields, ...patch } }))
+  const updateTemplate = (patch) => setMessagesState((state) => ({
+    ...state,
+    templates: state.templates.map((template) => (template.id === selectedTemplate.id ? { ...template, ...patch } : template)),
+  }))
+  const addTemplate = () => {
+    const next = {
+      id: crypto.randomUUID(),
+      title: 'Nuevo mensaje',
+      category: 'Personalizado',
+      channel: 'WhatsApp',
+      tone: 'Neutro',
+      body: 'Hola {client}, como estas?\n\n{project} / {piece}: {status}.\n\n{nextStep}\n\n{sender}',
+    }
+    setMessagesState((state) => ({ ...state, selectedId: next.id, templates: [next, ...state.templates] }))
+  }
+  const deleteTemplate = async () => {
+    if (templates.length <= 1 || !(await confirmDelete('esta plantilla'))) return
+    const nextTemplates = templates.filter((template) => template.id !== selectedTemplate.id)
+    setMessagesState((state) => ({ ...state, templates: nextTemplates, selectedId: nextTemplates[0].id }))
+  }
+  const copyMessage = async () => {
+    await navigator.clipboard.writeText(preview)
+    setCopied(true)
+    setMessagesState((state) => ({
+      ...state,
+      history: [{
+        id: crypto.randomUUID(),
+        template: selectedTemplate.title,
+        client: fields.client,
+        project: fields.project,
+        copiedAt: new Date().toISOString(),
+      }, ...state.history].slice(0, 12),
+    }))
+    window.setTimeout(() => setCopied(false), 1400)
+  }
+  const loadCurrentProject = () => {
+    updateFields({
+      client: currentBudget.client || currentBudget.finalClient || fields.client,
+      project: currentBudget.projectName || fields.project,
+      piece: currentBudget.productionSpecs?.deliverables || fields.piece,
+    })
+  }
+
+  return (
+    <div className="messages-section">
+      <div className="dashboard-heading">
+        <SectionTitle icon={<MessageSquareText />} eyebrow="Coordinacion de post" title="Mensajes" />
+        <div className="toolbar">
+          <button className="ghost" onClick={loadCurrentProject}><RotateCcw size={16} /> Usar proyecto activo</button>
+          <button className="ghost" onClick={addTemplate}><Plus size={16} /> Nuevo mensaje</button>
+          <button className="primary" onClick={copyMessage}><Copy size={16} /> {copied ? 'Copiado' : 'Copiar'}</button>
+        </div>
+      </div>
+      <section className="messages-grid">
+        <div className="panel composer-panel">
+          <SectionTitle icon={<Grid3X3 />} eyebrow="Variables" title="Datos del envio" />
+          <div className="form-grid">
+            <Input label="Cliente" value={fields.client} onChange={(v) => updateFields({ client: v })} />
+            <Input label="Proyecto" value={fields.project} onChange={(v) => updateFields({ project: v })} />
+            <Input label="Pieza / video" value={fields.piece} onChange={(v) => updateFields({ piece: v })} />
+            <Select label="Estado" value={fields.statusKey} options={messageStatusOptions.map((item) => item.key)} labels={Object.fromEntries(messageStatusOptions.map((item) => [item.key, item.es]))} onChange={(v) => updateFields({ statusKey: v })} />
+            <Input label="Fecha estimada" value={fields.deliveryDate} onChange={(v) => updateFields({ deliveryDate: v })} />
+            <Input label="Vuelta" value={fields.reviewRound} onChange={(v) => updateFields({ reviewRound: v })} />
+            <Input label="Link" value={fields.link} onChange={(v) => updateFields({ link: v })} />
+            <Input label="Firma" value={fields.sender} onChange={(v) => updateFields({ sender: v })} />
+          </div>
+          <div className="two-col">
+            <Textarea label="Notas para cliente" value={fields.notes} onChange={(v) => updateFields({ notes: v })} />
+            <Textarea label="Proximo paso" value={fields.nextStep} onChange={(v) => updateFields({ nextStep: v })} />
+          </div>
+        </div>
+        <div className="panel preview-panel">
+          <SectionTitle icon={<Send />} eyebrow="Preview" title={selectedTemplate.title} />
+          <div className="message-preview">{preview}</div>
+          <div className="quick-actions">
+            <a className="ghost" href={`mailto:?subject=${encodeURIComponent(`${fields.project} - ${fields.piece}`)}&body=${encodeURIComponent(preview)}`}><Mail size={16} /> Mail</a>
+            <a className="ghost" href={`https://wa.me/?text=${encodeURIComponent(preview)}`} target="_blank" rel="noreferrer"><MessageSquareText size={16} /> WhatsApp</a>
+          </div>
+        </div>
+      </section>
+      <section className="messages-grid lower-grid">
+        <div className="panel template-editor">
+          <div className="dashboard-heading">
+            <SectionTitle icon={<Sparkles />} eyebrow="Plantilla" title="Texto preestablecido" />
+            <IconButton icon={<Trash2 size={15} />} onClick={deleteTemplate} title="Eliminar plantilla" disabled={templates.length <= 1} />
+          </div>
+          <div className="form-grid compact">
+            <Select label="Plantilla activa" value={selectedTemplate.id} options={templates.map((template) => template.id)} labels={Object.fromEntries(templates.map((template) => [template.id, template.title]))} onChange={(id) => setMessagesState((state) => ({ ...state, selectedId: id }))} />
+            <Input label="Titulo" value={selectedTemplate.title} onChange={(v) => updateTemplate({ title: v })} />
+            <Input label="Categoria" value={selectedTemplate.category} onChange={(v) => updateTemplate({ category: v })} />
+            <Input label="Canal" value={selectedTemplate.channel} onChange={(v) => updateTemplate({ channel: v })} />
+          </div>
+          <Textarea label="Cuerpo del mensaje" value={selectedTemplate.body} onChange={(v) => updateTemplate({ body: v })} />
+          <p className="token-help">Variables: {'{client}'} {'{project}'} {'{piece}'} {'{status}'} {'{deliveryDate}'} {'{reviewRound}'} {'{link}'} {'{notes}'} {'{nextStep}'} {'{sender}'}</p>
+        </div>
+        <div className="panel history-panel">
+          <SectionTitle icon={<Copy />} eyebrow="Registro compartido" title="Ultimos copiados" />
+          <div className="history-list">
+            {messagesState.history.length ? messagesState.history.map((item) => (
+              <div className="history-item" key={item.id}>
+                <strong>{item.template}</strong>
+                <span>{item.client} - {item.project}</span>
+                <small>{new Date(item.copiedAt).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</small>
+              </div>
+            )) : (
+              <div className="empty-state">
+                <strong>Sin mensajes copiados</strong>
+                <p>Cuando copies un mensaje queda aca como referencia rapida para el equipo.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function renderMessageTemplate(template, fields) {
+  return template.replace(/\{(\w+)\}/g, (_, key) => fields[key] || '')
 }
 
 function ProjectBreakdownStep({ budget, pricingCatalog, updateNested, updateRow, removeRow, updateBudget }) {

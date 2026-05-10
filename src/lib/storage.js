@@ -1,6 +1,7 @@
 const STORAGE_KEY = 'bani-vfx-budgets'
 const CURRENT_KEY = 'bani-vfx-current-budget'
 export const PRICING_KEY = 'bani-vfx-pricing-catalog'
+export const MESSAGES_KEY = 'bani-vfx-post-messages'
 const USER_ROLE_KEY = 'bani-vfx-user-role'
 const SESSION_KEY = 'bani-vfx-session'
 const CLOUD_TABLE = 'app_state'
@@ -77,6 +78,21 @@ export const loadSharedBudgets = () => loadCloudValue(STORAGE_KEY, null)
 export const saveSharedBudgets = (budgets) => saveCloudValue(STORAGE_KEY, budgets)
 export const loadSharedPricingCatalog = () => loadCloudValue(PRICING_KEY, null)
 export const saveSharedPricingCatalog = (catalog) => saveCloudValue(PRICING_KEY, catalog)
+
+export const loadMessagesState = (fallback) => {
+  try {
+    return JSON.parse(localStorage.getItem(MESSAGES_KEY)) ?? fallback
+  } catch {
+    return fallback
+  }
+}
+
+export const saveMessagesState = (state) => {
+  localStorage.setItem(MESSAGES_KEY, JSON.stringify(state))
+}
+
+export const loadSharedMessagesState = () => loadCloudValue(MESSAGES_KEY, null)
+export const saveSharedMessagesState = (state) => saveCloudValue(MESSAGES_KEY, state)
 
 export const loadUserRole = () => localStorage.getItem(USER_ROLE_KEY) || 'producer'
 export const saveUserRole = (role) => localStorage.setItem(USER_ROLE_KEY, role)

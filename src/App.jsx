@@ -1165,7 +1165,6 @@ function ProjectsHub({ budgets, currentId, setCurrentId, deleteBudget, onNewBudg
           const isSelected = project.id === currentId
           const calendarItems = project.calendarItems?.length || 0
           const hasCalendar = calendarItems > 0
-          const hasDescription = Boolean(project.description?.trim())
           return (
             <article key={project.id} className={`project-card ${isSelected ? 'selected' : ''}`} onClick={() => setCurrentId(project.id)}>
               <div className="project-card-head">
@@ -1200,7 +1199,6 @@ function ProjectsHub({ budgets, currentId, setCurrentId, deleteBudget, onNewBudg
               </div>
 
               <div className="project-card-footer">
-                <small>{hasDescription ? project.description : 'Sin descripcion cargada'}</small>
                 <button title="Eliminar proyecto" onClick={(event) => { event.stopPropagation(); deleteBudget(project.id) }}><Trash2 size={15} /></button>
               </div>
             </article>

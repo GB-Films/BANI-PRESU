@@ -1206,9 +1206,156 @@ h3 {
 }
 
 .workspace-section,
-.messages-section {
+.messages-section,
+.projects-hub {
   display: grid;
   gap: 18px;
+}
+
+.projects-toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  align-items: end;
+  gap: 16px;
+  padding: 18px;
+}
+
+.projects-toolbar > div:last-child {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  color: #777;
+  font-size: 12px;
+}
+
+.projects-toolbar strong {
+  color: #f5f5f5;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
+}
+
+.project-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--vault-radius);
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.project-card:hover,
+.project-card.selected {
+  border-color: rgba(230, 30, 110, 0.58);
+  background: rgba(230, 30, 110, 0.055);
+}
+
+.project-card:hover {
+  transform: translateY(-2px);
+}
+
+.project-card-head,
+.project-card-footer,
+.project-client-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.project-card-head {
+  align-items: flex-start;
+}
+
+.project-card-head h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 28px;
+  font-style: italic;
+  line-height: 0.96;
+  text-transform: uppercase;
+}
+
+.project-card-head > strong {
+  color: var(--bani-pink);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 17px;
+  white-space: nowrap;
+}
+
+.project-client-line {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  color: #8a8a8a;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.project-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.project-status {
+  min-height: 86px;
+  padding: 12px;
+  border-radius: var(--vault-radius-sm);
+  color: #888;
+  background: rgba(255, 255, 255, 0.035);
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 7px;
+  text-align: left;
+}
+
+.project-status svg {
+  color: var(--bani-pink);
+}
+
+.project-status span {
+  color: #f5f5f5;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.project-status strong {
+  color: #8a8a8a;
+  font-size: 11px;
+}
+
+.project-status.ready {
+  border-color: rgba(230, 30, 110, 0.3);
+}
+
+.project-card-footer {
+  align-items: center;
+  padding-top: 2px;
+  color: #777;
+}
+
+.project-card-footer small {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.project-card-footer button {
+  width: 42px;
+  padding: 10px;
+  color: #8a8a8a;
 }
 
 .calendar-project-switcher {

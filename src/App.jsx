@@ -63,6 +63,7 @@ import {
 } from './lib/storage'
 
 const navItems = [
+  ['projects', 'Proyectos'],
   ['dashboard', 'Presupuestos'],
   ['calendars', 'Calendarios'],
   ['messages', 'Mensajes'],
@@ -276,7 +277,7 @@ function App() {
     return saved.length ? saved : [createBudget()]
   })
   const [currentId, setCurrentId] = useState(() => loadCurrentId() || budgets[0]?.id)
-  const [section, setSection] = useState('dashboard')
+  const [section, setSection] = useState('projects')
   const [wizardActive, setWizardActive] = useState(false)
   const [wizardStep, setWizardStep] = useState(0)
   const [session, setSession] = useState(() => loadSession())
@@ -298,7 +299,7 @@ function App() {
   const totals = useMemo(() => calculateBudget(budget), [budget])
   const userRole = session?.role || 'producer'
   const isAdmin = userRole === 'admin'
-  const visibleNavItems = isAdmin ? navItems : navItems.filter(([id]) => ['dashboard', 'calendars', 'messages'].includes(id))
+  const visibleNavItems = isAdmin ? navItems : navItems.filter(([id]) => ['projects', 'dashboard', 'calendars', 'messages'].includes(id))
 
   useEffect(() => {
     saveBudgets(budgets)
@@ -363,8 +364,8 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!isAdmin && !['dashboard', 'calendars', 'messages'].includes(section) && !wizardActive) setSection('dashboard')
-    if (isAdmin && !['dashboard', 'calendars', 'messages', 'brand', 'admin'].includes(section)) setSection('dashboard')
+    if (!isAdmin && !['projects', 'dashboard', 'calendars', 'messages'].includes(section) && !wizardActive) setSection('projects')
+    if (isAdmin && !['projects', 'dashboard', 'calendars', 'messages', 'brand', 'admin'].includes(section)) setSection('projects')
   }, [isAdmin, section, wizardActive])
 
   useEffect(() => {
@@ -496,14 +497,14 @@ function App() {
     setLoginError('')
     setSession(nextSession)
     saveSession(nextSession)
-    setSection('dashboard')
+    setSection('projects')
   }
 
   const handleLogout = async () => {
     if (!(await confirmPricingNavigation())) return
     clearSession()
     setSession(null)
-    setSection('dashboard')
+    setSection('projects')
     setWizardActive(false)
     setWizardStep(0)
   }
@@ -547,6 +548,13 @@ function App() {
     setSection('dashboard')
   }
 
+  const openProjectModule = async (id, nextSection) => {
+    if (section === 'admin' && !(await confirmPricingNavigation())) return
+    setCurrentId(id)
+    setWizardActive(false)
+    setSection(nextSection)
+  }
+
   const duplicateBudget = async (source = budget) => {
     if (section === 'admin' && !(await confirmPricingNavigation())) return
     const clone = {
@@ -558,7 +566,7 @@ function App() {
     }
     setBudgets((items) => [clone, ...items])
     setCurrentId(clone.id)
-    goToSection('project')
+    goToSection('projects')
   }
 
   const deleteBudget = async (id) => {
@@ -613,7 +621,7 @@ function App() {
             ))}
           </nav>
           {wizardActive && <WizardStepNav wizardStep={wizardStep} setWizardStep={setWizardStep} />}
-          {(wizardActive || section === 'dashboard') && (
+          {(wizardActive || ['projects', 'dashboard'].includes(section)) && (
             <div className="side-total">
               <span>Total final</span>
               <strong>{money(totals.totalFinal, budget.currency)}</strong>
@@ -650,6 +658,7 @@ function App() {
               exportPdf={exportPdf}
             />
           )}
+          {!wizardActive && section === 'projects' && <ProjectsHub budgets={budgets} currentId={currentId} setCurrentId={setCurrentId} deleteBudget={deleteBudget} onNewBudget={startNewBudget} onOpenBudget={openWizardForBudget} onOpenCalendar={(id) => openProjectModule(id, 'calendars')} onOpenMessages={(id) => openProjectModule(id, 'messages')} />}
           {!wizardActive && section === 'dashboard' && <Dashboard budgets={budgets} currentId={currentId} setCurrentId={setCurrentId} deleteBudget={deleteBudget} duplicateBudget={duplicateBudget} setSection={goToSection} onNewBudget={startNewBudget} onOpenWizard={openWizardForBudget} isAdmin={false} />}
           {!wizardActive && section === 'calendars' && <CalendarsWorkspace budgets={budgets} currentId={currentId} setCurrentId={setCurrentId} budget={budget} updateBudget={updateBudget} onNewBudget={startNewBudget} />}
           {!wizardActive && section === 'messages' && <MessagesSection messagesState={messagesState} setMessagesState={setMessagesState} currentBudget={budget} />}
@@ -1111,6 +1120,98 @@ function BallparkProposalStep({ budget, updateNested }) {
             </div>
           ))}
         </div>
+      </div>
+    </section>
+  )
+}
+
+function ProjectsHub({ budgets, currentId, setCurrentId, deleteBudget, onNewBudget, onOpenBudget, onOpenCalendar, onOpenMessages }) {
+  const [query, setQuery] = useState('')
+
+  const projects = useMemo(() => {
+    const normalized = query.trim().toLowerCase()
+    return budgets
+      .filter((item) => {
+        if (!normalized) return true
+        return [
+          item.projectName,
+          item.client,
+          item.finalClient,
+          item.budgetNumber,
+          item.budgetMode,
+        ].join(' ').toLowerCase().includes(normalized)
+      })
+      .sort((a, b) => new Date(b.updatedAt || b.date || 0).getTime() - new Date(a.updatedAt || a.date || 0).getTime())
+  }, [budgets, query])
+
+  return (
+    <section className="projects-hub">
+      <div className="dashboard-heading">
+        <SectionTitle icon={<Grid3X3 />} eyebrow="Centro de produccion" title="Proyectos" />
+        <button className="primary" onClick={onNewBudget}><Plus size={16} /> Nuevo proyecto</button>
+      </div>
+
+      <div className="projects-toolbar panel">
+        <Input label="Buscar proyecto / cliente / presupuesto" value={query} onChange={setQuery} />
+        <div>
+          <span>{projects.length} de {budgets.length}</span>
+          <strong>Primero presupuesto, despues calendario y seguimiento.</strong>
+        </div>
+      </div>
+
+      <div className="project-grid">
+        {projects.map((project) => {
+          const totals = calculateBudget(project)
+          const isSelected = project.id === currentId
+          const calendarItems = project.calendarItems?.length || 0
+          const hasCalendar = calendarItems > 0
+          const hasDescription = Boolean(project.description?.trim())
+          return (
+            <article key={project.id} className={`project-card ${isSelected ? 'selected' : ''}`} onClick={() => setCurrentId(project.id)}>
+              <div className="project-card-head">
+                <div>
+                  <p className="eyebrow">{project.budgetNumber} / {project.version}</p>
+                  <h3>{project.projectName}</h3>
+                </div>
+                <strong>{money(totals.totalFinal, project.currency)}</strong>
+              </div>
+
+              <div className="project-client-line">
+                <span>Cliente final: {project.finalClient || '-'}</span>
+                <span>Cliente: {project.client || '-'}</span>
+              </div>
+
+              <div className="project-status-grid">
+                <button className="project-status ready" onClick={(event) => { event.stopPropagation(); onOpenBudget(project.id) }}>
+                  <FileText size={16} />
+                  <span>Presupuesto</span>
+                  <strong>{project.budgetMode || 'Sin tipo'}</strong>
+                </button>
+                <button className={`project-status ${hasCalendar ? 'ready' : ''}`} onClick={(event) => { event.stopPropagation(); onOpenCalendar(project.id) }}>
+                  <CalendarDays size={16} />
+                  <span>Calendario</span>
+                  <strong>{hasCalendar ? `${calendarItems} items` : 'Pendiente'}</strong>
+                </button>
+                <button className="project-status" onClick={(event) => { event.stopPropagation(); onOpenMessages(project.id) }}>
+                  <MessageSquareText size={16} />
+                  <span>Mensajes</span>
+                  <strong>Seguimiento</strong>
+                </button>
+              </div>
+
+              <div className="project-card-footer">
+                <small>{hasDescription ? project.description : 'Sin descripcion cargada'}</small>
+                <button title="Eliminar proyecto" onClick={(event) => { event.stopPropagation(); deleteBudget(project.id) }}><Trash2 size={15} /></button>
+              </div>
+            </article>
+          )
+        })}
+        {!projects.length && (
+          <div className="empty-state">
+            <h3>Sin proyectos</h3>
+            <p>No hay proyectos que coincidan con la busqueda.</p>
+          </div>
+        )}
       </div>
     </section>
   )

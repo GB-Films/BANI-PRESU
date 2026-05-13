@@ -1899,7 +1899,7 @@ function groupWeeksByMonth(weeks, language = 'es') {
   return Array.from(groups.values())
 }
 
-function paginateCalendarWeeks(weeks, language = 'es', maxWeeksPerPage = 3) {
+function paginateCalendarWeeks(weeks, language = 'es', maxWeeksPerPage = 2) {
   return groupWeeksByMonth(weeks, language).flatMap((group) => {
     const pages = []
     for (let index = 0; index < group.weeks.length; index += maxWeeksPerPage) {

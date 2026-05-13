@@ -1820,6 +1820,16 @@ function calendarStartDateFromMonthWeek(monthValue, startWeek = 1) {
   return toDateInputValue(date)
 }
 
+function normalizeVisibleWeeks(visibleWeeks, startWeek = 1, weeks = 2) {
+  if (Array.isArray(visibleWeeks)) {
+    return [...new Set(visibleWeeks.map(Number).filter((week) => week >= 1 && week <= 5))].sort((a, b) => a - b)
+  }
+
+  const firstWeek = Math.max(1, Math.min(5, Number(startWeek || 1)))
+  const count = Math.max(1, Math.min(5, Number(weeks || 2)))
+  return Array.from({ length: count }, (_, index) => firstWeek + index).filter((week) => week <= 5)
+}
+
 function monthInputFromDate(value) {
   return (value || new Date().toISOString().slice(0, 10)).slice(0, 7)
 }
@@ -1831,8 +1841,8 @@ function calendarYearOptions(baseYear = new Date().getFullYear()) {
 function buildCalendarWeeks(startDate, weeks = 2, language = 'es') {
   const monday = getMonday(startDate)
   const labels = calendarWeekDays[language] || calendarWeekDays.es
-  return Array.from({ length: Number(weeks || 1) }, (_, weekIndex) => (
-    Array.from({ length: 5 }, (_, dayIndex) => {
+  return Array.from({ length: Number(weeks || 1) }, (_, weekIndex) => {
+    const days = Array.from({ length: 5 }, (_, dayIndex) => {
       const date = new Date(monday)
       date.setDate(monday.getDate() + (weekIndex * 7) + dayIndex)
       return {
@@ -1841,7 +1851,18 @@ function buildCalendarWeeks(startDate, weeks = 2, language = 'es') {
         key: toDateInputValue(date),
       }
     })
-  ))
+    days.weekNumber = weekIndex + 1
+    return days
+  })
+}
+
+function buildCalendarMonthWeeks(monthValue, language = 'es') {
+  const firstWeekStart = firstMondayOfMonth(monthValue)
+  const weeks = buildCalendarWeeks(firstWeekStart, 5, language)
+  return weeks.map((week, index) => {
+    week.weekNumber = index + 1
+    return week
+  })
 }
 
 function monthNameFromDate(value, language = 'es') {
@@ -1863,6 +1884,7 @@ function groupWeeksByMonth(weeks, language = 'es') {
 
   weeks.forEach((week, index) => {
     const monthKey = dominantMonthKeyForWeek(week)
+    const weekNumber = Number(week.weekNumber || index + 1)
     if (!groups.has(monthKey)) {
       groups.set(monthKey, {
         key: monthKey,
@@ -1871,7 +1893,7 @@ function groupWeeksByMonth(weeks, language = 'es') {
         weeks: [],
       })
     }
-    groups.get(monthKey).weeks.push({ index, days: week })
+    groups.get(monthKey).weeks.push({ index: weekNumber, days: week })
   })
 
   return Array.from(groups.values())
@@ -1902,36 +1924,50 @@ function CalendarPlannerSection({ budget, updateBudget }) {
   const shouldUseCalendarDefaults = !savedCalendarConsiderations.length || !savedCalendarConsiderations.some((item) => item.id?.endsWith(calendarLanguage))
   const calendarMonth = budget.calendarSettings?.month || monthInputFromDate(budget.calendarSettings?.startDate || budget.date)
   const calendarStartWeek = Math.max(1, Math.min(5, Number(budget.calendarSettings?.startWeek || 1)))
+  const visibleWeeks = normalizeVisibleWeeks(budget.calendarSettings?.visibleWeeks, calendarStartWeek, budget.calendarSettings?.weeks)
+  const firstVisibleWeek = visibleWeeks[0] || 1
   const settings = {
     title: budget.calendarSettings?.title || budget.projectName,
     month: calendarMonth,
-    startWeek: calendarStartWeek,
-    startDate: calendarStartDateFromMonthWeek(calendarMonth, calendarStartWeek),
-    weeks: Number(budget.calendarSettings?.weeks || 2),
+    startWeek: firstVisibleWeek,
+    visibleWeeks,
+    startDate: calendarStartDateFromMonthWeek(calendarMonth, firstVisibleWeek),
+    weeks: visibleWeeks.length,
     areas: budget.calendarSettings?.areas?.length ? budget.calendarSettings.areas : calendarAreaOptions,
     language: calendarLanguage,
     considerations: shouldUseCalendarDefaults ? defaultCalendarConsiderations : savedCalendarConsiderations,
     taskPresets: budget.calendarSettings?.taskPresets?.length ? budget.calendarSettings.taskPresets : defaultCalendarTaskPresets[calendarLanguage],
   }
-  const weeks = buildCalendarWeeks(settings.startDate, settings.weeks, settings.language)
+  const monthWeeks = buildCalendarMonthWeeks(settings.month, settings.language)
+  const weeks = monthWeeks.filter((week) => settings.visibleWeeks.includes(week.weekNumber))
   const updateSettings = (patch) => {
-    const nextSettings = { ...settings, ...patch }
+    const nextVisibleWeeks = patch.visibleWeeks
+      ? normalizeVisibleWeeks(patch.visibleWeeks, settings.startWeek, settings.weeks)
+      : settings.visibleWeeks
+    const nextSettings = { ...settings, ...patch, visibleWeeks: nextVisibleWeeks }
+    const nextStartWeek = nextVisibleWeeks[0] || 1
     updateBudget({
       calendarSettings: {
         ...nextSettings,
-        startDate: calendarStartDateFromMonthWeek(nextSettings.month, nextSettings.startWeek),
+        startWeek: nextStartWeek,
+        weeks: nextVisibleWeeks.length,
+        startDate: calendarStartDateFromMonthWeek(nextSettings.month, nextStartWeek),
       },
     })
   }
   const updateCalendarMonth = (month) => updateSettings({ month })
   const [selectedYear, selectedMonth] = settings.month.split('-')
   const yearOptions = calendarYearOptions(Number(selectedYear || new Date().getFullYear()))
-  const startWeekOptions = ['1', '2', '3', '4', '5']
-  const startWeekLabels = Object.fromEntries(startWeekOptions.map((option) => [option, `${settings.language === 'en' ? 'Week' : 'Semana'} ${option}`]))
   const updateCalendarMonthPart = (part, value) => {
     const nextYear = part === 'year' ? value : selectedYear
     const nextMonth = part === 'month' ? value : selectedMonth
     updateCalendarMonth(`${nextYear}-${nextMonth}`)
+  }
+  const toggleVisibleWeek = (weekNumber) => {
+    const nextWeeks = settings.visibleWeeks.includes(weekNumber)
+      ? settings.visibleWeeks.filter((week) => week !== weekNumber)
+      : [...settings.visibleWeeks, weekNumber].sort((a, b) => a - b)
+    updateSettings({ visibleWeeks: nextWeeks })
   }
   const updateCalendarConsideration = (id, patch) => {
     updateSettings({
@@ -1995,19 +2031,21 @@ function CalendarPlannerSection({ budget, updateBudget }) {
     if (!(await confirmDelete('el calendario completo'))) return
     updateBudget({ calendarItems: [] })
   }
-  const removeFirstVisibleWeek = async () => {
-    const firstWeekDates = (weeks[0] || []).map((day) => day.key)
-    if (!firstWeekDates.length || !(await confirmDelete('esta semana completa'))) return
-    const nextStartWeek = Math.min(5, settings.startWeek + 1)
-    const nextWeeks = Math.max(1, settings.weeks - 1)
+  const removeCalendarWeek = async (weekNumber) => {
+    const targetWeek = monthWeeks.find((week) => week.weekNumber === weekNumber)
+    const weekDates = (targetWeek || []).map((day) => day.key)
+    if (!weekDates.length || !(await confirmDelete('esta semana completa'))) return
+    const nextVisibleWeeks = settings.visibleWeeks.filter((week) => week !== weekNumber)
+    const nextStartWeek = nextVisibleWeeks[0] || 1
     updateBudget({
       calendarSettings: {
         ...settings,
         startWeek: nextStartWeek,
-        weeks: nextWeeks,
+        visibleWeeks: nextVisibleWeeks,
+        weeks: nextVisibleWeeks.length,
         startDate: calendarStartDateFromMonthWeek(settings.month, nextStartWeek),
       },
-      calendarItems: calendarItems.filter((item) => !firstWeekDates.includes(item.date)),
+      calendarItems: calendarItems.filter((item) => !weekDates.includes(item.date)),
     })
   }
   const exportCalendarImage = async () => {
@@ -2044,53 +2082,73 @@ function CalendarPlannerSection({ budget, updateBudget }) {
           <button className="primary" onClick={exportCalendarImage}><FileImage size={16} /> PNG</button>
         </div>
       </div>
-      <p className="muted-copy calendar-copy">Defini el mes, la semana de arranque y la cantidad de semanas visibles. La grilla se arma por dias habiles; vos completas las tareas por area.</p>
+      <p className="muted-copy calendar-copy">Defini el mes y elegi exactamente que semanas queres usar. La grilla se arma por dias habiles; vos completas las tareas por area.</p>
       <div className="form-grid calendar-settings-grid">
         <Input label="Titulo calendario" value={settings.title} onChange={(v) => updateSettings({ title: v })} />
         <Select label="Mes calendario" value={selectedMonth} options={calendarMonthOptions} labels={calendarMonthLabels[settings.language] || calendarMonthLabels.es} onChange={(v) => updateCalendarMonthPart('month', v)} />
         <Select label="Ano" value={selectedYear} options={yearOptions} onChange={(v) => updateCalendarMonthPart('year', v)} />
-        <Select label="Semana inicial" value={String(settings.startWeek)} options={startWeekOptions} labels={startWeekLabels} onChange={(v) => updateSettings({ startWeek: Number(v) })} />
-        <Input type="number" label="Cantidad de semanas" value={settings.weeks} onChange={(v) => updateSettings({ weeks: Math.max(1, Math.min(8, Number(v || 1))) })} />
         <Select label="Idioma calendario" value={settings.language} options={['es', 'en']} labels={{ es: 'Castellano', en: 'English' }} onChange={(v) => updateSettings({ language: v, considerations: calendarConsiderations[v], taskPresets: defaultCalendarTaskPresets[v] })} />
       </div>
-      <div className="calendar-task-bank">
-        <div className="admin-block-header">
-          <div>
-            <p className="eyebrow">{settings.language === 'en' ? 'Drag & drop' : 'Arrastrar y soltar'}</p>
-            <h3>{settings.language === 'en' ? 'Preset tasks' : 'Textos preestablecidos'}</h3>
-          </div>
-          <div className="task-preset-add">
-            <input value={newTaskPreset} onChange={(event) => setNewTaskPreset(event.target.value)} placeholder={settings.language === 'en' ? 'New task' : 'Nuevo texto'} />
-            <button className="add-row" onClick={addTaskPreset}><Plus size={16} /> {settings.language === 'en' ? 'Add' : 'Agregar'}</button>
-          </div>
+      <div className="calendar-week-selector">
+        <div>
+          <p className="eyebrow">{settings.language === 'en' ? 'Visible weeks' : 'Semanas visibles'}</p>
+          <h3>{settings.language === 'en' ? 'Choose month weeks' : 'Elegir semanas del mes'}</h3>
         </div>
-        <div className="task-preset-list">
-          {settings.taskPresets.map((text) => (
-            <span
-              className="task-preset-chip"
-              draggable
-              key={text}
-              onDragStart={(event) => event.dataTransfer.setData('text/plain', text)}
+        <div className="calendar-week-toggle-list">
+          {monthWeeks.map((week) => (
+            <button
+              className={settings.visibleWeeks.includes(week.weekNumber) ? 'selected' : ''}
+              key={`toggle-week-${week.weekNumber}`}
+              onClick={() => toggleVisibleWeek(week.weekNumber)}
             >
-              {text}
-              <button onClick={() => removeTaskPreset(text)} aria-label="Eliminar texto">x</button>
-            </span>
+              <strong>{settings.language === 'en' ? 'Week' : 'Semana'} {week.weekNumber}</strong>
+              <span>{week[0]?.day} - {week[4]?.day}</span>
+            </button>
           ))}
         </div>
       </div>
-      <div className="inline-actions">
-        <button className="ghost" onClick={fillFromBudget}><Sparkles size={16} /> Armar base automatica</button>
-        <button className="ghost" onClick={clearCalendar}><Trash2 size={16} /> Limpiar calendario</button>
+      <div className="calendar-workbench">
+        <aside className="calendar-task-bank">
+          <div className="calendar-task-bank-header">
+            <div>
+              <p className="eyebrow">{settings.language === 'en' ? 'Drag & drop' : 'Arrastrar y soltar'}</p>
+              <h3>{settings.language === 'en' ? 'Preset tasks' : 'Textos preestablecidos'}</h3>
+            </div>
+            <div className="task-preset-add">
+              <input value={newTaskPreset} onChange={(event) => setNewTaskPreset(event.target.value)} placeholder={settings.language === 'en' ? 'New task' : 'Nuevo texto'} />
+              <button className="add-row" onClick={addTaskPreset}><Plus size={16} /> {settings.language === 'en' ? 'Add' : 'Agregar'}</button>
+            </div>
+          </div>
+          <div className="task-preset-list">
+            {settings.taskPresets.map((text) => (
+              <span
+                className="task-preset-chip"
+                draggable
+                key={text}
+                onDragStart={(event) => event.dataTransfer.setData('text/plain', text)}
+              >
+                {text}
+                <button onClick={() => removeTaskPreset(text)} aria-label="Eliminar texto">x</button>
+              </span>
+            ))}
+          </div>
+        </aside>
+        <div className="calendar-board-column">
+          <div className="inline-actions calendar-board-actions">
+            <button className="ghost" onClick={fillFromBudget}><Sparkles size={16} /> Armar base automatica</button>
+            <button className="ghost" onClick={clearCalendar}><Trash2 size={16} /> Limpiar calendario</button>
+          </div>
+          <CalendarEditableView
+            budget={budget}
+            settings={settings}
+            weeks={weeks}
+            findCell={findCell}
+            updateCell={updateCell}
+            appendTaskToCell={appendTaskToCell}
+            onRemoveWeek={removeCalendarWeek}
+          />
+        </div>
       </div>
-      <CalendarEditableView
-        budget={budget}
-        settings={settings}
-        weeks={weeks}
-        findCell={findCell}
-        updateCell={updateCell}
-        appendTaskToCell={appendTaskToCell}
-        onRemoveFirstWeek={removeFirstVisibleWeek}
-      />
       <div className="considerations-panel calendar-considerations">
         <div className="admin-block-header">
           <div>
@@ -2114,8 +2172,17 @@ function CalendarPlannerSection({ budget, updateBudget }) {
   )
 }
 
-function CalendarEditableView({ budget, settings, weeks, findCell, updateCell, appendTaskToCell, onRemoveFirstWeek }) {
+function CalendarEditableView({ budget, settings, weeks, findCell, updateCell, appendTaskToCell, onRemoveWeek }) {
   const exportPages = paginateCalendarWeeks(weeks, settings.language)
+
+  if (!weeks.length) {
+    return (
+      <div className="calendar-empty-state">
+        <strong>{settings.language === 'en' ? 'No weeks selected' : 'No hay semanas seleccionadas'}</strong>
+        <span>{settings.language === 'en' ? 'Choose at least one week above to edit the schedule.' : 'Elegi al menos una semana arriba para editar el calendario.'}</span>
+      </div>
+    )
+  }
 
   return (
     <div className="calendar-export-page calendar-live-preview">
@@ -2125,13 +2192,11 @@ function CalendarEditableView({ budget, settings, weeks, findCell, updateCell, a
           {page.weeks.map(({ days: week, index: weekIndex }) => (
             <div className="calendar-export-week calendar-live-week" key={`editable-week-${page.key}-${weekIndex}`}>
               <div className="calendar-export-brand">
-                <span>{settings.language === 'en' ? 'Week' : 'Semana'} {settings.startWeek + weekIndex}</span>
-                {pageIndex === 0 && weekIndex === 0 && (
-                  <button className="calendar-week-delete" onClick={onRemoveFirstWeek} title={settings.language === 'en' ? 'Remove this week' : 'Quitar esta semana'}>
-                    <Trash2 size={13} />
-                    <span>{settings.language === 'en' ? 'Remove' : 'Quitar'}</span>
-                  </button>
-                )}
+                <span>{settings.language === 'en' ? 'Week' : 'Semana'} {weekIndex}</span>
+                <button className="calendar-week-delete" onClick={() => onRemoveWeek(weekIndex)} title={settings.language === 'en' ? 'Remove this week' : 'Quitar esta semana'}>
+                  <Trash2 size={13} />
+                  <span>{settings.language === 'en' ? 'Remove' : 'Quitar'}</span>
+                </button>
               </div>
               <div className="calendar-export-days">
                 <span />
@@ -2215,7 +2280,7 @@ function CalendarExportView({ budget, settings, weeks, calendarItems, exportRef 
           <CalendarMonthHeader budget={budget} settings={settings} monthTitle={page.title} compact={pageIndex > 0} />
           {page.weeks.map(({ days: week, index: weekIndex }) => (
             <div className="calendar-export-week" key={`export-week-${weekIndex}`}>
-              <div className="calendar-export-brand">{settings.language === 'en' ? 'Week' : 'Semana'} {settings.startWeek + weekIndex}</div>
+              <div className="calendar-export-brand">{settings.language === 'en' ? 'Week' : 'Semana'} {weekIndex}</div>
               <div className="calendar-export-days">
                 <span />
                 {week.map((day) => <strong key={day.key}>{day.label}<b>{day.day}</b></strong>)}

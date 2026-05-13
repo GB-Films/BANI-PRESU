@@ -2010,6 +2010,33 @@ function CalendarPlannerSection({ budget, updateBudget }) {
     const next = current.trim() ? `${current.trim()}\n${task}` : task
     updateCell(area, date, next)
   }
+  const moveTaskBetweenCells = ({ sourceArea, sourceDate, targetArea, targetDate, task }) => {
+    if (!sourceArea || !sourceDate || !targetArea || !targetDate || (sourceArea === targetArea && sourceDate === targetDate)) return
+
+    const sourceCell = findCell(sourceArea, sourceDate)
+    const targetCell = findCell(targetArea, targetDate)
+    const movingTask = (task || sourceCell?.task || '').trim()
+    if (!movingTask) return
+
+    const targetTask = targetCell?.task?.trim()
+    const nextTargetTask = targetTask ? `${targetTask}\n${movingTask}` : movingTask
+    let targetUpdated = false
+
+    const nextItems = calendarItems.map((item) => {
+      if (item.id === sourceCell?.id) return { ...item, task: '', included: false }
+      if (item.id === targetCell?.id) {
+        targetUpdated = true
+        return { ...item, task: nextTargetTask, included: true }
+      }
+      return item
+    })
+
+    updateBudget({
+      calendarItems: targetUpdated
+        ? nextItems
+        : [...nextItems, createCalendarItem({ area: targetArea, date: targetDate, task: nextTargetTask, included: true })],
+    })
+  }
   const fillFromBudget = () => {
     const firstWeek = weeks[0] || []
     const firstDay = firstWeek[0]?.key
@@ -2145,6 +2172,7 @@ function CalendarPlannerSection({ budget, updateBudget }) {
             findCell={findCell}
             updateCell={updateCell}
             appendTaskToCell={appendTaskToCell}
+            moveTaskBetweenCells={moveTaskBetweenCells}
             onRemoveWeek={removeCalendarWeek}
           />
         </div>
@@ -2172,8 +2200,26 @@ function CalendarPlannerSection({ budget, updateBudget }) {
   )
 }
 
-function CalendarEditableView({ budget, settings, weeks, findCell, updateCell, appendTaskToCell, onRemoveWeek }) {
+function CalendarEditableView({ budget, settings, weeks, findCell, updateCell, appendTaskToCell, moveTaskBetweenCells, onRemoveWeek }) {
   const exportPages = paginateCalendarWeeks(weeks, settings.language)
+  const dragType = 'application/x-bani-calendar-cell'
+  const dropOnCell = (event, area, date) => {
+    event.preventDefault()
+    event.stopPropagation()
+    const draggedCell = event.dataTransfer.getData(dragType)
+    if (draggedCell) {
+      try {
+        moveTaskBetweenCells({ ...JSON.parse(draggedCell), targetArea: area, targetDate: date })
+      } catch {
+        const text = event.dataTransfer.getData('text/plain')
+        if (text) appendTaskToCell(area, date, text)
+      }
+      return
+    }
+
+    const text = event.dataTransfer.getData('text/plain')
+    if (text) appendTaskToCell(area, date, text)
+  }
 
   if (!weeks.length) {
     return (
@@ -2209,18 +2255,35 @@ function CalendarEditableView({ budget, settings, weeks, findCell, updateCell, a
                     {week.map((day) => {
                       const cell = findCell(area, day.key)
                       return (
-                        <textarea
+                        <div
+                          className={`calendar-cell-editor ${cell?.task?.trim() ? 'has-task' : ''}`}
                           key={`${area}-${day.key}`}
-                          value={cell?.task || ''}
-                          onChange={(event) => updateCell(area, day.key, event.target.value)}
                           onDragOver={(event) => event.preventDefault()}
-                          onDrop={(event) => {
-                            event.preventDefault()
-                            const text = event.dataTransfer.getData('text/plain')
-                            if (text) appendTaskToCell(area, day.key, text)
-                          }}
-                          placeholder="-"
-                        />
+                          onDrop={(event) => dropOnCell(event, area, day.key)}
+                        >
+                          {cell?.task?.trim() && (
+                            <button
+                              type="button"
+                              className="calendar-cell-drag"
+                              draggable
+                              title={settings.language === 'en' ? 'Move text to another cell' : 'Mover texto a otra celda'}
+                              onDragStart={(event) => {
+                                event.dataTransfer.effectAllowed = 'move'
+                                event.dataTransfer.setData(dragType, JSON.stringify({ sourceArea: area, sourceDate: day.key, task: cell.task }))
+                                event.dataTransfer.setData('text/plain', cell.task)
+                              }}
+                            >
+                              <GripVertical size={13} />
+                            </button>
+                          )}
+                          <textarea
+                            value={cell?.task || ''}
+                            onChange={(event) => updateCell(area, day.key, event.target.value)}
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={(event) => dropOnCell(event, area, day.key)}
+                            placeholder="-"
+                          />
+                        </div>
                       )
                     })}
                   </Fragment>

@@ -1138,9 +1138,8 @@ h3 {
 
 .calendar-live-preview .calendar-export-grid > strong,
 .calendar-live-preview .calendar-export-grid > p,
-.calendar-live-preview .calendar-edit-export-grid > textarea {
+.calendar-live-preview .calendar-edit-export-grid > .calendar-cell-editor {
   min-height: 46px;
-  padding: 9px;
   font-size: 11px;
 }
 
@@ -1327,23 +1326,48 @@ h3 {
   color: transparent;
 }
 
-.calendar-edit-export-grid > textarea {
+.calendar-edit-export-grid > .calendar-cell-editor {
+  position: relative;
   min-height: 66px;
   margin: 0;
-  padding: 14px;
   border: 1px solid rgba(255, 255, 255, 0.075);
   border-radius: 0;
   background: #0b0b0b;
   color: #f3f3f3;
+}
+
+.calendar-cell-editor textarea {
+  width: 100%;
+  min-height: inherit;
+  margin: 0;
+  padding: 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
   font: inherit;
   font-size: 13px;
   line-height: 1.35;
   resize: vertical;
   text-align: center;
   white-space: pre-line;
+  outline: none;
 }
 
-.calendar-edit-export-grid > textarea:focus {
+.calendar-live-preview .calendar-cell-editor textarea {
+  padding: 9px;
+  font-size: 11px;
+}
+
+.calendar-cell-editor.has-task textarea {
+  padding-top: 26px;
+}
+
+.calendar-live-preview .calendar-cell-editor.has-task textarea {
+  padding-top: 26px;
+}
+
+.calendar-edit-export-grid > .calendar-cell-editor:focus-within {
   position: relative;
   z-index: 1;
   border-color: rgba(230, 30, 110, 0.72);
@@ -1351,9 +1375,38 @@ h3 {
   outline: none;
 }
 
-.calendar-edit-export-grid > textarea.outside-month {
-  pointer-events: none;
-  resize: none;
+.calendar-cell-drag {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #b9b9b9;
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 140ms ease, border-color 140ms ease, color 140ms ease, background 140ms ease;
+}
+
+.calendar-cell-editor.has-task:hover .calendar-cell-drag,
+.calendar-cell-drag:focus-visible {
+  opacity: 1;
+}
+
+.calendar-cell-drag:hover {
+  border-color: rgba(230, 30, 110, 0.52);
+  background: rgba(230, 30, 110, 0.18);
+  color: #fff;
+}
+
+.calendar-cell-drag:active {
+  cursor: grabbing;
 }
 
 .calendar-export-notes {
@@ -2574,6 +2627,10 @@ input[type="color"] {
 
   .calendar-board-actions button {
     flex: 1;
+  }
+
+  .calendar-cell-drag {
+    opacity: 1;
   }
 
   .wizard-steps,

@@ -90,6 +90,7 @@ export const createBudget = () => ({
     title: '',
     startDate: new Date().toISOString().slice(0, 10),
     month: new Date().toISOString().slice(0, 7),
+    startWeek: 1,
     weeks: 2,
     areas: ['POST', 'VFX', '3D', 'ENTREGAS'],
     language: 'es',

@@ -6,13 +6,4 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   base: '/BANI-PRESU/',
   plugins: [react(), tailwindcss()],
-  build: {
-    rollupOptions: {
-      output: {
-        entryFileNames: 'assets/[name].js',
-        chunkFileNames: 'assets/[name].js',
-        assetFileNames: 'assets/[name][extname]',
-      },
-    },
-  },
 })

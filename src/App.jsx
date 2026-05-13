@@ -1914,18 +1914,6 @@ function paginateCalendarWeeks(weeks, language = 'es', maxWeeksPerPage = 2) {
   })
 }
 
-function paginateCalendarWeeksForExport(weeks, language = 'es', hasConsiderations = false) {
-  const pages = paginateCalendarWeeks(weeks, language, 2)
-  if (!hasConsiderations || pages.at(-1)?.weeks.length !== 2) return pages
-
-  const lastPage = pages.at(-1)
-  return [
-    ...pages.slice(0, -1),
-    { ...lastPage, key: `${lastPage.key}-a`, weeks: [lastPage.weeks[0]] },
-    { ...lastPage, key: `${lastPage.key}-b`, weeks: [lastPage.weeks[1]] },
-  ]
-}
-
 function CalendarPlannerSection({ budget, updateBudget }) {
   const calendarRef = useRef(null)
   const [newTaskPreset, setNewTaskPreset] = useState('')
@@ -2345,13 +2333,13 @@ function CalendarMonthHeader({ budget, settings, monthTitle, compact = false }) 
 function CalendarExportView({ budget, settings, weeks, calendarItems, exportRef }) {
   const taskFor = (area, date) => calendarItems.find((item) => item.included && item.area === area && item.date === date)?.task || '-'
   const visibleConsiderations = (settings.considerations || []).filter((item) => item.included && item.text)
-  const exportPages = paginateCalendarWeeksForExport(weeks, settings.language, !!visibleConsiderations.length)
+  const exportPages = paginateCalendarWeeks(weeks, settings.language)
   const considerationsLabel = settings.language === 'en' ? 'Considerations' : 'Consideraciones'
 
   return (
     <div className="calendar-export-page" ref={exportRef}>
       {exportPages.map((page, pageIndex) => (
-        <section className={`calendar-export-month-page ${pageIndex === exportPages.length - 1 && !!visibleConsiderations.length ? 'has-considerations' : ''}`} key={page.key}>
+        <section className="calendar-export-month-page" key={page.key}>
           <CalendarMonthHeader budget={budget} settings={settings} monthTitle={page.title} compact={pageIndex > 0} />
           {page.weeks.map(({ days: week, index: weekIndex }) => (
             <div className="calendar-export-week" key={`export-week-${weekIndex}`}>

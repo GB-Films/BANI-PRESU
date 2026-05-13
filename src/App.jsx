@@ -2298,14 +2298,17 @@ function CalendarEditableView({ budget, settings, weeks, findCell, updateCell, a
 }
 
 function CalendarMonthHeader({ budget, settings, monthTitle, compact = false }) {
-  const titleLabel = settings.language === 'en' ? 'Schedule' : 'Calendario'
-  const finalClientLabel = settings.language === 'en' ? 'Final client' : 'Cliente final'
-  const clientLabel = settings.language === 'en' ? 'Client' : 'Cliente'
   const projectTitle = settings.title || budget.projectName
+  const clientName = budget.finalClient || budget.client
 
   if (compact) {
     return (
       <header className="calendar-export-month-only">
+        <div className="calendar-export-title-main">
+          <h2>{projectTitle}</h2>
+          <span>Timeline</span>
+        </div>
+        {clientName && <h3>{clientName}</h3>}
         <h4>{monthTitle}</h4>
       </header>
     )
@@ -2314,16 +2317,17 @@ function CalendarMonthHeader({ budget, settings, monthTitle, compact = false }) 
   return (
     <header className="calendar-export-header">
       <div className="calendar-export-title">
+        <div className="calendar-export-title-main">
+          <h2>{projectTitle}</h2>
+          <span>Timeline</span>
+        </div>
+        {clientName && <h3>{clientName}</h3>}
         <h4>{monthTitle}</h4>
-        <h2>{projectTitle}</h2>
-        {budget.finalClient && <h3>{finalClientLabel}: {budget.finalClient}</h3>}
-        {budget.client && <h3>{clientLabel}: {budget.client}</h3>}
       </div>
       <div className="calendar-export-lockup">
         <img src={`${assetBase}monograma-negativo-perfil.jpg`} alt="BANI VFX" />
         <div>
           <strong>BANI VFX</strong>
-          <span>{titleLabel}</span>
         </div>
       </div>
     </header>

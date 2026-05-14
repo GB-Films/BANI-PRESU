@@ -1816,18 +1816,18 @@ function firstMondayOfMonth(monthValue) {
 
 function calendarStartDateFromMonthWeek(monthValue, startWeek = 1) {
   const date = new Date(`${firstMondayOfMonth(monthValue)}T00:00:00`)
-  date.setDate(date.getDate() + ((Math.max(1, Math.min(5, Number(startWeek || 1))) - 1) * 7))
+  date.setDate(date.getDate() + ((Math.max(1, Number(startWeek || 1)) - 1) * 7))
   return toDateInputValue(date)
 }
 
 function normalizeVisibleWeeks(visibleWeeks, startWeek = 1, weeks = 2) {
   if (Array.isArray(visibleWeeks)) {
-    return [...new Set(visibleWeeks.map(Number).filter((week) => week >= 1 && week <= 5))].sort((a, b) => a - b)
+    return [...new Set(visibleWeeks.map(Number).filter((week) => week >= 1 && week <= 52))].sort((a, b) => a - b)
   }
 
-  const firstWeek = Math.max(1, Math.min(5, Number(startWeek || 1)))
-  const count = Math.max(1, Math.min(5, Number(weeks || 2)))
-  return Array.from({ length: count }, (_, index) => firstWeek + index).filter((week) => week <= 5)
+  const firstWeek = Math.max(1, Number(startWeek || 1))
+  const count = Math.max(1, Math.min(52, Number(weeks || 2)))
+  return Array.from({ length: count }, (_, index) => firstWeek + index)
 }
 
 function monthInputFromDate(value) {
@@ -1856,9 +1856,9 @@ function buildCalendarWeeks(startDate, weeks = 2, language = 'es') {
   })
 }
 
-function buildCalendarMonthWeeks(monthValue, language = 'es') {
+function buildCalendarMonthWeeks(monthValue, language = 'es', totalWeeks = 5) {
   const firstWeekStart = firstMondayOfMonth(monthValue)
-  const weeks = buildCalendarWeeks(firstWeekStart, 5, language)
+  const weeks = buildCalendarWeeks(firstWeekStart, Math.max(5, Number(totalWeeks || 5)), language)
   return weeks.map((week, index) => {
     week.weekNumber = index + 1
     return week
@@ -1923,7 +1923,7 @@ function CalendarPlannerSection({ budget, updateBudget }) {
   const defaultCalendarConsiderations = calendarConsiderations[calendarLanguage] || calendarConsiderations.es
   const shouldUseCalendarDefaults = !savedCalendarConsiderations.length || !savedCalendarConsiderations.some((item) => item.id?.endsWith(calendarLanguage))
   const calendarMonth = budget.calendarSettings?.month || monthInputFromDate(budget.calendarSettings?.startDate || budget.date)
-  const calendarStartWeek = Math.max(1, Math.min(5, Number(budget.calendarSettings?.startWeek || 1)))
+  const calendarStartWeek = Math.max(1, Number(budget.calendarSettings?.startWeek || 1))
   const visibleWeeks = normalizeVisibleWeeks(budget.calendarSettings?.visibleWeeks, calendarStartWeek, budget.calendarSettings?.weeks)
   const firstVisibleWeek = visibleWeeks[0] || 1
   const settings = {
@@ -1938,7 +1938,8 @@ function CalendarPlannerSection({ budget, updateBudget }) {
     considerations: shouldUseCalendarDefaults ? defaultCalendarConsiderations : savedCalendarConsiderations,
     taskPresets: budget.calendarSettings?.taskPresets?.length ? budget.calendarSettings.taskPresets : defaultCalendarTaskPresets[calendarLanguage],
   }
-  const monthWeeks = buildCalendarMonthWeeks(settings.month, settings.language)
+  const maxVisibleWeek = Math.max(5, ...settings.visibleWeeks)
+  const monthWeeks = buildCalendarMonthWeeks(settings.month, settings.language, maxVisibleWeek + 1)
   const weeks = monthWeeks.filter((week) => settings.visibleWeeks.includes(week.weekNumber))
   const updateSettings = (patch) => {
     const nextVisibleWeeks = patch.visibleWeeks
@@ -1968,6 +1969,10 @@ function CalendarPlannerSection({ budget, updateBudget }) {
       ? settings.visibleWeeks.filter((week) => week !== weekNumber)
       : [...settings.visibleWeeks, weekNumber].sort((a, b) => a - b)
     updateSettings({ visibleWeeks: nextWeeks })
+  }
+  const addNextVisibleWeek = () => {
+    const nextWeek = Math.min(52, Math.max(0, ...settings.visibleWeeks) + 1)
+    if (!settings.visibleWeeks.includes(nextWeek)) updateSettings({ visibleWeeks: [...settings.visibleWeeks, nextWeek] })
   }
   const updateCalendarConsideration = (id, patch) => {
     updateSettings({
@@ -2119,7 +2124,7 @@ function CalendarPlannerSection({ budget, updateBudget }) {
       <div className="calendar-week-selector">
         <div>
           <p className="eyebrow">{settings.language === 'en' ? 'Visible weeks' : 'Semanas visibles'}</p>
-          <h3>{settings.language === 'en' ? 'Choose month weeks' : 'Elegir semanas del mes'}</h3>
+          <h3>{settings.language === 'en' ? 'Choose schedule weeks' : 'Elegir semanas del cronograma'}</h3>
         </div>
         <div className="calendar-week-toggle-list">
           {monthWeeks.map((week) => (
@@ -2132,6 +2137,10 @@ function CalendarPlannerSection({ budget, updateBudget }) {
               <span>{week[0]?.day} - {week[4]?.day}</span>
             </button>
           ))}
+          <button className="calendar-add-week" onClick={addNextVisibleWeek}>
+            <Plus size={16} />
+            <strong>{settings.language === 'en' ? 'Add next week' : 'Agregar semana siguiente'}</strong>
+          </button>
         </div>
       </div>
       <div className="calendar-workbench">

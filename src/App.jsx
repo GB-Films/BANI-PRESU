@@ -148,6 +148,13 @@ const normalizeMessagesState = (state) => ({
   selectedId: state?.selectedId || defaultMessageTemplates[0].id,
   history: state?.history || [],
 })
+const cloudErrorStatus = (error, fallback = 'Error de nube') => {
+  const message = String(error?.message || error || '')
+  if (message.includes('401') || message.includes('403') || message.toLowerCase().includes('permission')) return 'Nube sin permisos'
+  if (message.includes('404') || message.includes('42P01') || message.toLowerCase().includes('does not exist')) return 'Falta tabla nube'
+  if (message.includes('Failed to fetch') || message.includes('NetworkError') || message.toLowerCase().includes('resolve')) return 'Nube sin conexion'
+  return fallback
+}
 const mergeDayRates = (rates = []) => {
   if (!rates.length) return defaultPricingCatalog.ballparkDayRates
   const existingKeys = new Set(rates.map((rate) => String(rate.key || '').toLowerCase()))
@@ -304,14 +311,18 @@ function App() {
   useEffect(() => {
     saveBudgets(budgets)
     if (cloudLoaded && isCloudStorageEnabled()) {
-      saveSharedBudgets(budgets).catch(() => setCloudStatus('No se pudo guardar en nube'))
+      saveSharedBudgets(budgets)
+        .then(() => setCloudStatus('Nube sincronizada'))
+        .catch((error) => setCloudStatus(cloudErrorStatus(error, 'No se pudo guardar en nube')))
     }
   }, [budgets, cloudLoaded])
 
   useEffect(() => {
     saveMessagesState(messagesState)
     if (cloudLoaded && isCloudStorageEnabled()) {
-      saveSharedMessagesState(messagesState).catch(() => setCloudStatus('No se pudo guardar en nube'))
+      saveSharedMessagesState(messagesState)
+        .then(() => setCloudStatus('Nube sincronizada'))
+        .catch((error) => setCloudStatus(cloudErrorStatus(error, 'No se pudo guardar en nube')))
     }
   }, [messagesState, cloudLoaded])
 
@@ -351,8 +362,8 @@ function App() {
           await saveSharedMessagesState(messagesState)
         }
         setCloudStatus('Nube sincronizada')
-      } catch {
-        if (!cancelled) setCloudStatus('Sin conexion a nube')
+      } catch (error) {
+        if (!cancelled) setCloudStatus(cloudErrorStatus(error, 'Sin conexion a nube'))
       } finally {
         if (!cancelled) setCloudLoaded(true)
       }
@@ -435,7 +446,7 @@ function App() {
     if (isCloudStorageEnabled()) {
       saveSharedPricingCatalog(pricingCatalog)
         .then(() => setCloudStatus('Nube sincronizada'))
-        .catch(() => setCloudStatus('No se pudo guardar en nube'))
+        .catch((error) => setCloudStatus(cloudErrorStatus(error, 'No se pudo guardar en nube')))
     }
   }
 

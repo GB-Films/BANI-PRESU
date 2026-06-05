@@ -25,7 +25,10 @@ const loadCloudValue = async (key, fallback) => {
     headers: cloudHeaders,
     cache: 'no-store',
   })
-  if (!response.ok) throw new Error(`Supabase load failed: ${response.status}`)
+  if (!response.ok) {
+    const details = await response.text().catch(() => '')
+    throw new Error(`Supabase load failed: ${response.status}${details ? ` ${details}` : ''}`)
+  }
   const rows = await response.json()
   return rows[0]?.data ?? fallback
 }
@@ -44,7 +47,10 @@ const saveCloudValue = async (key, value) => {
       updated_at: new Date().toISOString(),
     }),
   })
-  if (!response.ok) throw new Error(`Supabase save failed: ${response.status}`)
+  if (!response.ok) {
+    const details = await response.text().catch(() => '')
+    throw new Error(`Supabase save failed: ${response.status}${details ? ` ${details}` : ''}`)
+  }
 }
 
 export const loadBudgets = () => {

@@ -6,6 +6,9 @@ create table if not exists public.app_state (
 
 alter table public.app_state enable row level security;
 
+grant usage on schema public to anon, authenticated;
+grant select, insert, update on table public.app_state to anon, authenticated;
+
 drop policy if exists "app_state_public_read" on public.app_state;
 create policy "app_state_public_read"
 on public.app_state
